@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Graphiques en temps réel - Température, Courant, Pression</title>
+  <title>Données Transfo_SITEX avec ThingSpeak</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <style>
@@ -16,6 +16,11 @@
       align-items: center;
     }
 
+    h1 {
+      color: #222;
+      text-align: center;
+      margin-bottom: 10px;
+    }
     h2 {
       color: #000;
       text-align: center;
@@ -41,6 +46,8 @@
 </head>
 <body>
 
+  <h1>Données Transfo_SITEX avec ThingSpeak</h1>
+
   <h2>Évolution de la Température</h2>
   <div class="chart-container">
     <canvas id="chartTemp"></canvas>
@@ -57,7 +64,7 @@
   </div>
 
   <script>
-    const channelID = 2933717;
+    const channelID = 2933717;  // Remplace par ton channel ID si différent
     const fieldLabels = ['Température (°C)', 'Courant (A)', 'Pression (bars)'];
     const fieldIDs = [1, 2, 3];
     const chartIDs = ['chartTemp', 'chartCourant', 'chartPression'];
@@ -124,6 +131,7 @@
 
     function fetchData() {
       fieldIDs.forEach((field, index) => {
+        // URL publique sans clé API
         const url = `https://api.thingspeak.com/channels/${channelID}/fields/${field}.json?results=40`;
 
         fetch(url)
@@ -148,8 +156,8 @@
       charts.push(createChart(chartIDs[index], label, yMax[index], colors[index], fills[index]));
     });
 
-    // Rafraîchissement toutes les 20 secondes
-    setInterval(fetchData, 20000);
+    // Rafraîchissement toutes les 5 secondes (5000 ms)
+    setInterval(fetchData, 5000);
     fetchData();
   </script>
 
