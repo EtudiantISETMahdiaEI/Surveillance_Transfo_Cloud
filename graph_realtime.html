@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Graphiques en temps réel - Température, Courant, Pression</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 40px 0;
+      background-color: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h2 {
+      color: #000;
+      text-align: center;
+      margin-top: 40px;
+      margin-bottom: 10px;
+    }
+
+    .chart-container {
+      width: 90%;
+      max-width: 800px;
+      height: 350px;
+      margin-bottom: 50px;
+      display: flex;
+      justify-content: center;
+    }
+
+    canvas {
+      background: #ffffff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Évolution de la Température</h2>
+  <div class="chart-container">
+    <canvas id="chartTemp"></canvas>
+  </div>
+
+  <h2>Évolution du Courant</h2>
+  <div class="chart-container">
+    <canvas id="chartCourant"></canvas>
+  </div>
+
+  <h2>Évolution de la Pression</h2>
+  <div class="chart-container">
+    <canvas id="chartPression"></canvas>
+  </div>
+
+  <script>
+    const channelID = 2933717;
+    const fieldLabels = ['Température (°C)', 'Courant (A)', 'Pression (bars)'];
+    const fieldIDs = [1, 2, 3];
+    const chartIDs = ['chartTemp', 'chartCourant', 'chartPression'];
+    const yMax = [100, 1000, 5];
+    const colors = ['rgba(255, 0, 0, 1)', 'rgba(0, 0, 255, 1)', 'rgba(0, 128, 0, 1)'];
+    const fills = ['rgba(255, 0, 0, 0.2)', 'rgba(0, 0, 255, 0.2)', 'rgba(0, 128, 0, 0.2)'];
+
+    let charts = [];
+
+    function createChart(canvasID, label, maxY, color, fillColor) {
+      const ctx = document.getElementById(canvasID).getContext('2d');
+      return new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: label,
+            data: [],
+            borderColor: color,
+            backgroundColor: fillColor,
+            fill: true,
+            tension: 0.2,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true
+            }
+          },
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'second',
+                tooltipFormat: 'dd/MM/yyyy HH:mm:ss',
+                displayFormats: {
+                  second: 'dd/MM/yyyy HH:mm:ss'
+                }
+              },
+              title: {
+                display: true,
+                text: 'Date / Heure'
+              },
+              ticks: {
+                maxRotation: 45,
+                autoSkip: true
+              }
+            },
+            y: {
+              suggestedMin: 0,
+              suggestedMax: maxY,
+              title: {
+                display: true,
+                text: label
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function fetchData() {
+      fieldIDs.forEach((field, index) => {
+        const url = `https://api.thingspeak.com/channels/${channelID}/fields/${field}.json?results=40`;
+
+        fetch(url)
+          .then(response => response.json())
+          .then(data => {
+            const feed = data.feeds;
+            const labels = feed.map(entry => new Date(entry.created_at));
+            const values = feed.map(entry => parseFloat(entry[`field${field}`]));
+
+            charts[index].data.labels = labels;
+            charts[index].data.datasets[0].data = values;
+            charts[index].update();
+          })
+          .catch(error => {
+            console.error(`Erreur lors de la récupération des données pour le champ ${field}:`, error);
+          });
+      });
+    }
+
+    // Création des graphiques
+    fieldLabels.forEach((label, index) => {
+      charts.push(createChart(chartIDs[index], label, yMax[index], colors[index], fills[index]));
+    });
+
+    // Rafraîchissement toutes les 20 secondes
+    setInterval(fetchData, 20000);
+    fetchData();
+  </script>
+
+</body>
+</html>
