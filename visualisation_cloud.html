@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Visualisation - Transformateur MT/BT</title>
+  <title>Données Transfo_SITEX à travers Thingspeak</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -11,6 +11,14 @@
       background-color: #f4f4f4;
       padding: 20px;
       margin: 0;
+    }
+
+    h1 {
+      text-align: center;
+      color: black;
+      font-weight: bold;
+      font-size: 28px;
+      margin-bottom: 10px;
     }
 
     h2 {
@@ -49,12 +57,16 @@
 
     .normal { background-color: #e9ffe9; }
     .surchauffe { background-color: #ffcccc; font-weight: bold; }
+    .surchauffe-critique { background-color: #ff9999; font-weight: bold; color: white; }
     .surintensite { background-color: #ffe5cc; font-weight: bold; }
-    .declenchement { background-color: #fff8b3; font-weight: bold; }
+    .surpression { background-color: #d5f4ff; font-weight: bold; }
+    .haut { background-color: #ccffcc; }
+    .bas { background-color: #ffffcc; }
   </style>
 </head>
 <body>
 
+<h1>Données Transfo_SITEX par Thingspeak</h1>
 <h2>Évolution des paramètres</h2>
 
 <div class="chart-container"><canvas id="tempChart"></canvas></div>
@@ -66,7 +78,7 @@
 <table id="dataTable">
   <thead>
     <tr>
-      <th>Heure</th>
+      <th>Date/Heure</th>
       <th>Température (°C)</th>
       <th>Courant (A)</th>
       <th>Pression (bars)</th>
@@ -82,17 +94,23 @@ const apiKey = "6C7J88FPA3BL0998";
 const channelID = "2933717";
 const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=20&api_key=${apiKey}`;
 
+function convertToLocalTime(utcDateStr) {
+  const date = new Date(utcDateStr);
+  // Convert to local time (France GMT+1 / GMT+2)
+  date.setHours(date.getHours() + 1);
+  return date.toLocaleString('fr-FR').replace(',', '');
+}
+
 fetch(url)
   .then(response => response.json())
   .then(data => {
-    const feeds = data.feeds.reverse();
+    const feeds = data.feeds; // garder l’ordre chronologique (gauche → droite)
 
-    const labels = feeds.map(f => f.created_at.slice(11, 19)); // hh:mm:ss
+    const labels = feeds.map(f => convertToLocalTime(f.created_at).split(' ')[1]); // Heure
     const temp = feeds.map(f => parseFloat(f.field1));
     const courant = feeds.map(f => parseFloat(f.field2));
     const pression = feeds.map(f => parseFloat(f.field3));
     const niveauHuile = feeds.map(f => f.field4 === "Haut" ? 1 : 0);
-    const etatList = feeds.map(f => f.field5 || "");
 
     // Graphiques
     const makeChart = (ctxId, label, dataArr, color, yMax, yStep, unit, customTicks = null) => {
@@ -158,19 +176,45 @@ fetch(url)
     // Tableau
     const tbody = document.querySelector("#dataTable tbody");
     feeds.forEach((f, i) => {
-      const etat = (etatList[i] || "").toUpperCase();
+      const tempVal = parseFloat(f.field1 || 0);
+      const courantVal = parseFloat(f.field2 || 0);
+      const pressionVal = parseFloat(f.field3 || 0);
+      const niveau = f.field4 || "-";
+
+      let etat = "Normal";
       let className = "normal";
-      if (etat.includes("SURCHAUFFE")) className = "surchauffe";
-      else if (etat.includes("SURINTENSITÉ") || etat.includes("SURINTENSITE")) className = "surintensite";
-      else if (etat.includes("DÉCLENCHEMENT") || etat.includes("DECLENCHEMENT")) className = "declenchement";
+
+      if (tempVal >= 90) {
+        etat = "Surchauffe-critique";
+        className = "surchauffe-critique";
+      } else if (tempVal >= 80) {
+        etat = "Surchauffe";
+        className = "surchauffe";
+      }
+
+      if (courantVal >= 910) {
+        etat = "Surintensité";
+        className = "surintensite";
+      }
+
+      if (pressionVal >= 3) {
+        etat = "Surpression";
+        className = "surpression";
+      }
+
+      if (niveau === "Haut") {
+        className = "haut";
+      } else if (niveau === "Bas") {
+        className = "bas";
+      }
 
       const row = `<tr class="${className}">
-        <td>${f.created_at.replace("T", " ").slice(0, 19)}</td>
+        <td>${convertToLocalTime(f.created_at)}</td>
         <td>${f.field1 || "-"}</td>
         <td>${f.field2 || "-"}</td>
         <td>${f.field3 || "-"}</td>
-        <td>${f.field4 || "-"}</td>
-        <td>${f.field5 || "-"}</td>
+        <td>${niveau}</td>
+        <td>${etat}</td>
       </tr>`;
       tbody.innerHTML += row;
     });
