@@ -1,165 +1,173 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Données Transfo_SITEX avec ThingSpeak</title>
+  <meta charset="UTF-8">
+  <title>Visualisation Transfo - Données complètes</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 40px 0;
-      background-color: #f9f9f9;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      background-color: #f5f5f5;
+      padding: 20px;
     }
 
-    h1 {
-      color: #222;
-      text-align: center;
-      margin-bottom: 10px;
-    }
     h2 {
-      color: #000;
       text-align: center;
-      margin-top: 40px;
-      margin-bottom: 10px;
+      margin-top: 20px;
     }
 
     .chart-container {
-      width: 90%;
+      width: 100%;
       max-width: 800px;
-      height: 350px;
-      margin-bottom: 50px;
-      display: flex;
-      justify-content: center;
+      margin: 20px auto;
     }
 
-    canvas {
-      background: #ffffff;
-      border: 1px solid #ccc;
-      border-radius: 8px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 40px;
+      background: white;
     }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+
+    th {
+      background-color: #007BFF;
+      color: white;
+    }
+
+    .normal { background-color: #e9ffe9; }
+    .surchauffe { background-color: #ffcccc; font-weight: bold; }
+    .surintensite { background-color: #ffe5cc; font-weight: bold; }
+    .declenchement { background-color: #fff8b3; font-weight: bold; }
   </style>
 </head>
 <body>
 
-  <h1>Données Transfo_SITEX avec ThingSpeak</h1>
+<h2>Évolution de la Température</h2>
+<div class="chart-container">
+  <canvas id="tempChart"></canvas>
+</div>
 
-  <h2>Évolution de la Température</h2>
-  <div class="chart-container">
-    <canvas id="chartTemp"></canvas>
-  </div>
+<h2>Évolution du Courant</h2>
+<div class="chart-container">
+  <canvas id="courantChart"></canvas>
+</div>
 
-  <h2>Évolution du Courant</h2>
-  <div class="chart-container">
-    <canvas id="chartCourant"></canvas>
-  </div>
+<h2>Évolution de la Pression</h2>
+<div class="chart-container">
+  <canvas id="pressionChart"></canvas>
+</div>
 
-  <h2>Évolution de la Pression</h2>
-  <div class="chart-container">
-    <canvas id="chartPression"></canvas>
-  </div>
+<h2>Évolution du Niveau d'huile</h2>
+<div class="chart-container">
+  <canvas id="huileChart"></canvas>
+</div>
 
-  <script>
-    const channelID = 2933717;  // Remplace par ton channel ID si différent
-    const fieldLabels = ['Température (°C)', 'Courant (A)', 'Pression (bars)'];
-    const fieldIDs = [1, 2, 3];
-    const chartIDs = ['chartTemp', 'chartCourant', 'chartPression'];
-    const yMax = [100, 1000, 5];
-    const colors = ['rgba(255, 0, 0, 1)', 'rgba(0, 0, 255, 1)', 'rgba(0, 128, 0, 1)'];
-    const fills = ['rgba(255, 0, 0, 0.2)', 'rgba(0, 0, 255, 0.2)', 'rgba(0, 128, 0, 0.2)'];
+<h2>Données détaillées</h2>
+<table id="dataTable">
+  <thead>
+    <tr>
+      <th>Date/Heure</th>
+      <th>Température (°C)</th>
+      <th>Courant (A)</th>
+      <th>Pression (bars)</th>
+      <th>Niveau d'huile</th>
+      <th>État</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
-    let charts = [];
+<script>
+const API_URL = "https://ton-site.com/get_data.php"; // à modifier selon ton hébergement
 
-    function createChart(canvasID, label, maxY, color, fillColor) {
-      const ctx = document.getElementById(canvasID).getContext('2d');
-      return new Chart(ctx, {
+fetch(API_URL)
+  .then(response => response.json())
+  .then(data => {
+    const labels = data.map(d => d.Heure_date);
+    const temperatureData = data.map(d => parseFloat(d.Temperature));
+    const courantData = data.map(d => parseFloat(d.Courant));
+    const pressionData = data.map(d => parseFloat(d.Pression));
+    const huileData = data.map(d => d.Niveau_huile === 'Haut' ? 1 : 0);
+
+    const huileTicks = (value) => value === 1 ? 'Haut' : 'Bas';
+
+    const createChart = (id, label, data, color, maxY, tickCallback = null) => {
+      new Chart(document.getElementById(id).getContext('2d'), {
         type: 'line',
         data: {
-          labels: [],
+          labels,
           datasets: [{
-            label: label,
-            data: [],
+            label,
+            data,
             borderColor: color,
-            backgroundColor: fillColor,
+            backgroundColor: color.replace('1)', '0.2)').replace('rgb', 'rgba'),
             fill: true,
-            tension: 0.2,
-            pointRadius: 2
+            tension: 0.3,
+            pointRadius: 3
           }]
         },
         options: {
           responsive: true,
-          plugins: {
-            legend: {
-              display: true
-            }
-          },
           scales: {
-            x: {
-              type: 'time',
-              time: {
-                unit: 'second',
-                tooltipFormat: 'dd/MM/yyyy HH:mm:ss',
-                displayFormats: {
-                  second: 'dd/MM/yyyy HH:mm:ss'
-                }
-              },
-              title: {
-                display: true,
-                text: 'Date / Heure'
-              },
+            y: {
+              min: 0,
+              max: maxY,
               ticks: {
-                maxRotation: 45,
-                autoSkip: true
+                callback: tickCallback || undefined
               }
             },
-            y: {
-              suggestedMin: 0,
-              suggestedMax: maxY,
-              title: {
-                display: true,
-                text: label
+            x: {
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45,
+                autoSkip: true,
+                maxTicksLimit: 10
               }
             }
           }
         }
       });
-    }
+    };
 
-    function fetchData() {
-      fieldIDs.forEach((field, index) => {
-        // URL publique sans clé API
-        const url = `https://api.thingspeak.com/channels/${channelID}/fields/${field}.json?results=40`;
+    createChart("tempChart", "Température (°C)", temperatureData, "rgb(255,0,0,1)", 100);
+    createChart("courantChart", "Courant (A)", courantData, "rgb(0,0,255,1)", 1000);
+    createChart("pressionChart", "Pression (bars)", pressionData, "rgb(0,128,0,1)", 5);
+    createChart("huileChart", "Niveau d'huile", huileData, "rgb(255,165,0,1)", 1, huileTicks);
 
-        fetch(url)
-          .then(response => response.json())
-          .then(data => {
-            const feed = data.feeds;
-            const labels = feed.map(entry => new Date(entry.created_at));
-            const values = feed.map(entry => parseFloat(entry[`field${field}`]));
+    // Table HTML
+    const tbody = document.querySelector("#dataTable tbody");
+    data.forEach(row => {
+      const tr = document.createElement("tr");
 
-            charts[index].data.labels = labels;
-            charts[index].data.datasets[0].data = values;
-            charts[index].update();
-          })
-          .catch(error => {
-            console.error(`Erreur lors de la récupération des données pour le champ ${field}:`, error);
-          });
-      });
-    }
+      const etatClass = row.Etat.toLowerCase();
+      tr.className = {
+        "normal": "normal",
+        "surchauffe": "surchauffe",
+        "surintensité": "surintensite",
+        "déclenchement": "declenchement"
+      }[etatClass] || "";
 
-    // Création des graphiques
-    fieldLabels.forEach((label, index) => {
-      charts.push(createChart(chartIDs[index], label, yMax[index], colors[index], fills[index]));
+      tr.innerHTML = `
+        <td>${row.Heure_date}</td>
+        <td>${row.Temperature}</td>
+        <td>${row.Courant}</td>
+        <td>${row.Pression}</td>
+        <td>${row.Niveau_huile}</td>
+        <td>${row.Etat}</td>
+      `;
+      tbody.appendChild(tr);
     });
-
-    // Rafraîchissement toutes les 5 secondes (5000 ms)
-    setInterval(fetchData, 20000);
-    fetchData();
-  </script>
+  })
+  .catch(err => {
+    console.error("Erreur de chargement des données :", err);
+  });
+</script>
 
 </body>
 </html>
