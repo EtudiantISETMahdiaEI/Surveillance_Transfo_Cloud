@@ -1,150 +1,16 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <title>Visualisation - Paramètres transformateur</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f5f5f5;
-      padding: 20px;
-      margin: 0;
-    }
-
-    h2 {
-      text-align: center;
-      margin-top: 20px;
-    }
-
-    .chart-container {
-      width: 100%;
-      max-width: 800px;
-      margin: 20px auto;
-    }
-
-    canvas {
-      width: 100% !important;
-      height: auto !important;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 40px;
-      background: white;
-    }
-
-    th, td {
-      padding: 10px;
-      border: 1px solid #ccc;
-      text-align: center;
-    }
-
-    th {
-      background-color: #007BFF;
-      color: white;
-    }
-
-    .normal { background-color: #e9ffe9; }
-    .surchauffe { background-color: #ffcccc; font-weight: bold; }
-    .surintensite { background-color: #ffe5cc; font-weight: bold; }
-    .declenchement { background-color: #fff8b3; font-weight: bold; }
-  </style>
-</head>
-<body>
-
-<h2>Évolution de la Température</h2>
-<div class="chart-container">
-  <canvas id="tempChart"></canvas>
-</div>
-
-<h2>Évolution du Courant</h2>
-<div class="chart-container">
-  <canvas id="courantChart"></canvas>
-</div>
-
-<h2>Évolution de la Pression</h2>
-<div class="chart-container">
-  <canvas id="pressionChart"></canvas>
-</div>
-
-<h2>Évolution du Niveau d'huile</h2>
-<div class="chart-container">
-  <canvas id="huileChart"></canvas>
-</div>
-
-<h2>Données récentes</h2>
-<table id="dataTable">
-  <thead>
-    <tr>
-      <th>Date/Heure</th>
-      <th>Température (°C)</th>
-      <th>Courant (A)</th>
-      <th>Pression (bars)</th>
-      <th>Niveau d'huile</th>
-      <th>État</th>
-    </tr>
-  </thead>
-  <tbody>
-    <!-- Les lignes seront insérées par JS -->
-  </tbody>
-</table>
-
 <script>
-  // Exemple de données statiques (à remplacer par tes données JSON réelles)
-  const data = [
-    {
-      "Heure_date": "2025-05-25 14:00:00",
-      "Temperature": "45.3",
-      "Courant": "850",
-      "Pression": "3.2",
-      "Niveau_huile": "Haut",
-      "Etat": "normal"
-    },
-    {
-      "Heure_date": "2025-05-25 14:05:00",
-      "Temperature": "47.0",
-      "Courant": "900",
-      "Pression": "3.5",
-      "Niveau_huile": "Bas",
-      "Etat": "SURCHAUFFE"
-    },
-    {
-      "Heure_date": "2025-05-25 14:10:00",
-      "Temperature": "44.8",
-      "Courant": "920",
-      "Pression": "3.6",
-      "Niveau_huile": "Haut",
-      "Etat": "surintensité"
-    },
-    {
-      "Heure_date": "2025-05-25 14:15:00",
-      "Temperature": "46.1",
-      "Courant": "1000",
-      "Pression": "3.8",
-      "Niveau_huile": "Bas",
-      "Etat": "déclenchement"
-    }
-    // ... ajoute ici jusqu'à 20 entrées au besoin
-  ];
+  // Variables globales pour les charts et le tableau
+  let tempChart, courantChart, pressionChart, huileChart;
 
-  // Récupération des tableaux des données pour les graphiques
-  const labels = data.map(d => d.Heure_date);
-  const temperatureData = data.map(d => parseFloat(d.Temperature));
-  const courantData = data.map(d => parseFloat(d.Courant));
-  const pressionData = data.map(d => parseFloat(d.Pression));
-  const huileData = data.map(d => d.Niveau_huile === 'Haut' ? 1 : 0);
-
+  // Fonction pour créer un graphique (utilisée plus tard)
   function chartOptions(label, data, color, yMax, yStep, unit, customTicks = null) {
     return {
       type: 'line',
       data: {
-        labels: labels,
+        labels: data.labels,
         datasets: [{
           label: label + (unit ? ' (' + unit + ')' : ''),
-          data: data,
+          data: data.values,
           borderColor: color,
           backgroundColor: color.includes('rgb') ? color.replace('1)', '0.2)').replace('rgb', 'rgba') : color,
           fill: true,
@@ -175,10 +41,7 @@
           }
         },
         plugins: {
-          legend: {
-            display: true,
-            position: 'top'
-          },
+          legend: { display: true, position: 'top' },
           tooltip: {
             mode: 'index',
             intersect: false,
@@ -201,47 +64,114 @@
     };
   }
 
-  // Création des graphiques
-  new Chart(document.getElementById('tempChart').getContext('2d'), chartOptions('Température', temperatureData, 'rgb(255, 0, 0, 1)', 100, 10, '°C'));
-  new Chart(document.getElementById('courantChart').getContext('2d'), chartOptions('Courant', courantData, 'rgb(0, 0, 255, 1)', 1000, 100, 'A'));
-  new Chart(document.getElementById('pressionChart').getContext('2d'), chartOptions('Pression', pressionData, 'rgb(0, 128, 0, 1)', 5, 0.5, 'bars'));
-  new Chart(document.getElementById('huileChart').getContext('2d'), chartOptions(
-    "Niveau d'huile",
-    huileData,
-    'rgb(255, 165, 0, 1)', // orange
-    1,
-    1,
-    '',
-    function(value) {
-      return value === 1 ? 'Haut' : 'Bas';
-    }
-  ));
+  // Fonction pour convertir les données JSON reçues en tableaux pour les graphiques
+  function parseData(jsonData) {
+    const labels = jsonData.map(d => d.Heure_date).reverse(); // reverse pour chrono
+    const temperatureData = jsonData.map(d => parseFloat(d.Temperature)).reverse();
+    const courantData = jsonData.map(d => parseFloat(d.Courant)).reverse();
+    const pressionData = jsonData.map(d => parseFloat(d.Pression)).reverse();
+    const huileData = jsonData.map(d => d.Niveau_huile === 'Haut' ? 1 : 0).reverse();
 
-  // Remplissage du tableau HTML avec coloration par état
-  const tbody = document.querySelector('#dataTable tbody');
-  data.forEach(row => {
-    const tr = document.createElement('tr');
-    const etat = row.Etat.toUpperCase();
-    let className = '';
-    switch (etat) {
-      case 'SURCHAUFFE': className = 'surchauffe'; break;
-      case 'SURINTENSITÉ': case 'SURINTENSITE': className = 'surintensite'; break;
-      case 'DÉCLENCHEMENT': case 'DECLENCHEMENT': className = 'declenchement'; break;
-      default: className = 'normal'; break;
-    }
-    tr.className = className;
+    return {
+      labels,
+      temperatureData,
+      courantData,
+      pressionData,
+      huileData
+    };
+  }
 
-    tr.innerHTML = `
-      <td>${row.Heure_date}</td>
-      <td>${row.Temperature}</td>
-      <td>${row.Courant}</td>
-      <td>${row.Pression}</td>
-      <td>${row.Niveau_huile}</td>
-      <td>${row.Etat}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+  // Fonction pour mettre à jour les graphiques avec les nouvelles données
+  function updateCharts(dataParsed) {
+    // Met à jour les données des datasets et labels puis actualise le graphique
+    tempChart.data.labels = dataParsed.labels;
+    tempChart.data.datasets[0].data = dataParsed.temperatureData;
+    tempChart.update();
+
+    courantChart.data.labels = dataParsed.labels;
+    courantChart.data.datasets[0].data = dataParsed.courantData;
+    courantChart.update();
+
+    pressionChart.data.labels = dataParsed.labels;
+    pressionChart.data.datasets[0].data = dataParsed.pressionData;
+    pressionChart.update();
+
+    huileChart.data.labels = dataParsed.labels;
+    huileChart.data.datasets[0].data = dataParsed.huileData;
+    huileChart.update();
+  }
+
+  // Fonction pour mettre à jour le tableau HTML avec les données JSON
+  function updateTable(data) {
+    const tbody = document.querySelector('#dataTable tbody');
+    tbody.innerHTML = ''; // vide d'abord
+
+    // Pour chaque ligne de données, créer une rangée <tr> avec la bonne classe selon état
+    data.slice().reverse().forEach(row => {
+      const tr = document.createElement('tr');
+      const etat = row.Etat.toUpperCase();
+      let className = '';
+      switch (etat) {
+        case 'SURCHAUFFE': className = 'surchauffe'; break;
+        case 'SURINTENSITÉ': case 'SURINTENSITE': className = 'surintensite'; break;
+        case 'DÉCLENCHEMENT': case 'DECLENCHEMENT': className = 'declenchement'; break;
+        default: className = 'normal'; break;
+      }
+      tr.className = className;
+
+      tr.innerHTML = `
+        <td>${row.Heure_date}</td>
+        <td>${row.Temperature}</td>
+        <td>${row.Courant}</td>
+        <td>${row.Pression}</td>
+        <td>${row.Niveau_huile}</td>
+        <td>${row.Etat}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Fonction principale pour récupérer les données JSON depuis PHP et rafraîchir graphiques + tableau
+  async function fetchAndUpdate() {
+    try {
+      const response = await fetch('get_data.php');
+      if (!response.ok) throw new Error('Erreur HTTP ' + response.status);
+
+      const jsonData = await response.json();
+
+      const dataParsed = parseData(jsonData);
+
+      updateCharts(dataParsed);
+      updateTable(jsonData);
+
+    } catch (error) {
+      console.error('Erreur lors de la récupération des données:', error);
+    }
+  }
+
+  // Initialisation des graphiques avec des données vides (pour ne pas planter)
+  function initCharts() {
+    const emptyData = { labels: [], temperatureData: [], courantData: [], pressionData: [], huileData: [] };
+    tempChart = new Chart(document.getElementById('tempChart').getContext('2d'), chartOptions('Température', {labels: [], values: []}, 'rgb(255, 0, 0, 1)', 100, 10, '°C'));
+    courantChart = new Chart(document.getElementById('courantChart').getContext('2d'), chartOptions('Courant', {labels: [], values: []}, 'rgb(0, 0, 255, 1)', 1000, 100, 'A'));
+    pressionChart = new Chart(document.getElementById('pressionChart').getContext('2d'), chartOptions('Pression', {labels: [], values: []}, 'rgb(0, 128, 0, 1)', 5, 0.5, 'bars'));
+    huileChart = new Chart(document.getElementById('huileChart').getContext('2d'), chartOptions(
+      "Niveau d'huile",
+      {labels: [], values: []},
+      'rgb(255, 165, 0, 1)', // orange
+      1,
+      1,
+      '',
+      function(value) {
+        return value === 1 ? 'Haut' : 'Bas';
+      }
+    ));
+  }
+
+  // Au chargement de la page : initialise graphiques puis lance la boucle fetch+update toutes les 20s
+  window.onload = () => {
+    initCharts();
+    fetchAndUpdate();
+    setInterval(fetchAndUpdate, 20000); // toutes les 20 secondes
+  };
 </script>
-
-</body>
-</html>
