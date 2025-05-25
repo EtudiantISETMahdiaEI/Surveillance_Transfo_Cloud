@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Visualisation - Transformateur MT/BT</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      padding: 20px;
+      margin: 0;
+    }
+
+    h2 {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .chart-container {
+      width: 100%;
+      max-width: 800px;
+      margin: 20px auto;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: auto !important;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 40px;
+      background: white;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+
+    th {
+      background-color: #007BFF;
+      color: white;
+    }
+
+    .normal { background-color: #e9ffe9; }
+    .surchauffe { background-color: #ffcccc; font-weight: bold; }
+    .surintensite { background-color: #ffe5cc; font-weight: bold; }
+    .declenchement { background-color: #fff8b3; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h2>Évolution des paramètres</h2>
+
+<div class="chart-container"><canvas id="tempChart"></canvas></div>
+<div class="chart-container"><canvas id="courantChart"></canvas></div>
+<div class="chart-container"><canvas id="pressionChart"></canvas></div>
+<div class="chart-container"><canvas id="huileChart"></canvas></div>
+
+<h2>Données récentes</h2>
+<table id="dataTable">
+  <thead>
+    <tr>
+      <th>Heure</th>
+      <th>Température (°C)</th>
+      <th>Courant (A)</th>
+      <th>Pression (bars)</th>
+      <th>Niveau d'huile</th>
+      <th>État</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+const apiKey = "6C7J88FPA3BL0998";
+const channelID = "2933717";
+const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=20&api_key=${apiKey}`;
+
+fetch(url)
+  .then(response => response.json())
+  .then(data => {
+    const feeds = data.feeds.reverse();
+
+    const labels = feeds.map(f => f.created_at.slice(11, 19)); // hh:mm:ss
+    const temp = feeds.map(f => parseFloat(f.field1));
+    const courant = feeds.map(f => parseFloat(f.field2));
+    const pression = feeds.map(f => parseFloat(f.field3));
+    const niveauHuile = feeds.map(f => f.field4 === "Haut" ? 1 : 0);
+    const etatList = feeds.map(f => f.field5 || "");
+
+    // Graphiques
+    const makeChart = (ctxId, label, dataArr, color, yMax, yStep, unit, customTicks = null) => {
+      new Chart(document.getElementById(ctxId).getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: label + (unit ? ' (' + unit + ')' : ''),
+            data: dataArr,
+            borderColor: color,
+            backgroundColor: color.replace('1)', '0.2)').replace('rgb', 'rgba'),
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              min: 0,
+              max: yMax,
+              ticks: {
+                stepSize: yStep,
+                callback: customTicks || undefined
+              },
+              title: { display: true, text: label }
+            },
+            x: {
+              title: { display: true, text: 'Heure' },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45,
+                autoSkip: true,
+                maxTicksLimit: 10
+              }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  if (label === "Niveau d'huile") {
+                    return "Niveau d'huile : " + (context.raw === 1 ? "Haut" : "Bas");
+                  }
+                  return `${context.dataset.label}: ${context.formattedValue}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    };
+
+    makeChart("tempChart", "Température", temp, "rgb(255, 0, 0, 1)", 100, 10, "°C");
+    makeChart("courantChart", "Courant", courant, "rgb(0, 0, 255, 1)", 1000, 100, "A");
+    makeChart("pressionChart", "Pression", pression, "rgb(0, 128, 0, 1)", 5, 0.5, "bars");
+    makeChart("huileChart", "Niveau d'huile", niveauHuile, "rgb(255, 165, 0, 1)", 1, 1, "",
+      value => value === 1 ? "Haut" : "Bas"
+    );
+
+    // Tableau
+    const tbody = document.querySelector("#dataTable tbody");
+    feeds.forEach((f, i) => {
+      const etat = (etatList[i] || "").toUpperCase();
+      let className = "normal";
+      if (etat.includes("SURCHAUFFE")) className = "surchauffe";
+      else if (etat.includes("SURINTENSITÉ") || etat.includes("SURINTENSITE")) className = "surintensite";
+      else if (etat.includes("DÉCLENCHEMENT") || etat.includes("DECLENCHEMENT")) className = "declenchement";
+
+      const row = `<tr class="${className}">
+        <td>${f.created_at.replace("T", " ").slice(0, 19)}</td>
+        <td>${f.field1 || "-"}</td>
+        <td>${f.field2 || "-"}</td>
+        <td>${f.field3 || "-"}</td>
+        <td>${f.field4 || "-"}</td>
+        <td>${f.field5 || "-"}</td>
+      </tr>`;
+      tbody.innerHTML += row;
+    });
+  })
+  .catch(err => console.error("Erreur de chargement ThingSpeak:", err));
+
+// Auto-refresh toutes les 15 secondes
+setTimeout(() => location.reload(), 15000);
+</script>
+
+</body>
+</html>
