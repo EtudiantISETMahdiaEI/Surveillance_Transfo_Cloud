@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Visualisation Transfo - Données complètes</title>
+  <meta charset="UTF-8" />
+  <title>Visualisation - Paramètres transformateur</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       font-family: Arial, sans-serif;
       background-color: #f5f5f5;
       padding: 20px;
+      margin: 0;
     }
 
     h2 {
@@ -20,6 +22,11 @@
       width: 100%;
       max-width: 800px;
       margin: 20px auto;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: auto !important;
     }
 
     table {
@@ -68,7 +75,7 @@
   <canvas id="huileChart"></canvas>
 </div>
 
-<h2>Données détaillées</h2>
+<h2>Données récentes</h2>
 <table id="dataTable">
   <thead>
     <tr>
@@ -80,92 +87,159 @@
       <th>État</th>
     </tr>
   </thead>
-  <tbody></tbody>
+  <tbody>
+    <!-- Les lignes seront insérées par JS -->
+  </tbody>
 </table>
 
 <script>
-const API_URL = "https://ton-site.com/get_data.php"; // à modifier selon ton hébergement
+  // Exemple de données statiques (à remplacer par tes données JSON réelles)
+  const data = [
+    {
+      "Heure_date": "2025-05-25 14:00:00",
+      "Temperature": "45.3",
+      "Courant": "850",
+      "Pression": "3.2",
+      "Niveau_huile": "Haut",
+      "Etat": "normal"
+    },
+    {
+      "Heure_date": "2025-05-25 14:05:00",
+      "Temperature": "47.0",
+      "Courant": "900",
+      "Pression": "3.5",
+      "Niveau_huile": "Bas",
+      "Etat": "SURCHAUFFE"
+    },
+    {
+      "Heure_date": "2025-05-25 14:10:00",
+      "Temperature": "44.8",
+      "Courant": "920",
+      "Pression": "3.6",
+      "Niveau_huile": "Haut",
+      "Etat": "surintensité"
+    },
+    {
+      "Heure_date": "2025-05-25 14:15:00",
+      "Temperature": "46.1",
+      "Courant": "1000",
+      "Pression": "3.8",
+      "Niveau_huile": "Bas",
+      "Etat": "déclenchement"
+    }
+    // ... ajoute ici jusqu'à 20 entrées au besoin
+  ];
 
-fetch(API_URL)
-  .then(response => response.json())
-  .then(data => {
-    const labels = data.map(d => d.Heure_date);
-    const temperatureData = data.map(d => parseFloat(d.Temperature));
-    const courantData = data.map(d => parseFloat(d.Courant));
-    const pressionData = data.map(d => parseFloat(d.Pression));
-    const huileData = data.map(d => d.Niveau_huile === 'Haut' ? 1 : 0);
+  // Récupération des tableaux des données pour les graphiques
+  const labels = data.map(d => d.Heure_date);
+  const temperatureData = data.map(d => parseFloat(d.Temperature));
+  const courantData = data.map(d => parseFloat(d.Courant));
+  const pressionData = data.map(d => parseFloat(d.Pression));
+  const huileData = data.map(d => d.Niveau_huile === 'Haut' ? 1 : 0);
 
-    const huileTicks = (value) => value === 1 ? 'Haut' : 'Bas';
-
-    const createChart = (id, label, data, color, maxY, tickCallback = null) => {
-      new Chart(document.getElementById(id).getContext('2d'), {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label,
-            data,
-            borderColor: color,
-            backgroundColor: color.replace('1)', '0.2)').replace('rgb', 'rgba'),
-            fill: true,
-            tension: 0.3,
-            pointRadius: 3
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: {
-              min: 0,
-              max: maxY,
-              ticks: {
-                callback: tickCallback || undefined
-              }
+  function chartOptions(label, data, color, yMax, yStep, unit, customTicks = null) {
+    return {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: label + (unit ? ' (' + unit + ')' : ''),
+          data: data,
+          borderColor: color,
+          backgroundColor: color.includes('rgb') ? color.replace('1)', '0.2)').replace('rgb', 'rgba') : color,
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            min: 0,
+            max: yMax,
+            ticks: {
+              stepSize: yStep,
+              callback: customTicks ? customTicks : undefined
             },
-            x: {
-              ticks: {
-                maxRotation: 45,
-                minRotation: 45,
-                autoSkip: true,
-                maxTicksLimit: 10
+            title: { display: true, text: label + (unit ? ' (' + unit + ')' : '') }
+          },
+          x: {
+            title: { display: true, text: 'Date/Heure' },
+            ticks: {
+              maxRotation: 45,
+              minRotation: 45,
+              autoSkip: true,
+              maxTicksLimit: 10
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: function(context) {
+                if (label === "Niveau d'huile") {
+                  return "Niveau d'huile: " + (context.raw === 1 ? 'Haut' : 'Bas');
+                }
+                return context.dataset.label + ': ' + context.formattedValue;
               }
             }
           }
+        },
+        interaction: {
+          mode: 'nearest',
+          axis: 'x',
+          intersect: false
         }
-      });
+      }
     };
+  }
 
-    createChart("tempChart", "Température (°C)", temperatureData, "rgb(255,0,0,1)", 100);
-    createChart("courantChart", "Courant (A)", courantData, "rgb(0,0,255,1)", 1000);
-    createChart("pressionChart", "Pression (bars)", pressionData, "rgb(0,128,0,1)", 5);
-    createChart("huileChart", "Niveau d'huile", huileData, "rgb(255,165,0,1)", 1, huileTicks);
+  // Création des graphiques
+  new Chart(document.getElementById('tempChart').getContext('2d'), chartOptions('Température', temperatureData, 'rgb(255, 0, 0, 1)', 100, 10, '°C'));
+  new Chart(document.getElementById('courantChart').getContext('2d'), chartOptions('Courant', courantData, 'rgb(0, 0, 255, 1)', 1000, 100, 'A'));
+  new Chart(document.getElementById('pressionChart').getContext('2d'), chartOptions('Pression', pressionData, 'rgb(0, 128, 0, 1)', 5, 0.5, 'bars'));
+  new Chart(document.getElementById('huileChart').getContext('2d'), chartOptions(
+    "Niveau d'huile",
+    huileData,
+    'rgb(255, 165, 0, 1)', // orange
+    1,
+    1,
+    '',
+    function(value) {
+      return value === 1 ? 'Haut' : 'Bas';
+    }
+  ));
 
-    // Table HTML
-    const tbody = document.querySelector("#dataTable tbody");
-    data.forEach(row => {
-      const tr = document.createElement("tr");
+  // Remplissage du tableau HTML avec coloration par état
+  const tbody = document.querySelector('#dataTable tbody');
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+    const etat = row.Etat.toUpperCase();
+    let className = '';
+    switch (etat) {
+      case 'SURCHAUFFE': className = 'surchauffe'; break;
+      case 'SURINTENSITÉ': case 'SURINTENSITE': className = 'surintensite'; break;
+      case 'DÉCLENCHEMENT': case 'DECLENCHEMENT': className = 'declenchement'; break;
+      default: className = 'normal'; break;
+    }
+    tr.className = className;
 
-      const etatClass = row.Etat.toLowerCase();
-      tr.className = {
-        "normal": "normal",
-        "surchauffe": "surchauffe",
-        "surintensité": "surintensite",
-        "déclenchement": "declenchement"
-      }[etatClass] || "";
-
-      tr.innerHTML = `
-        <td>${row.Heure_date}</td>
-        <td>${row.Temperature}</td>
-        <td>${row.Courant}</td>
-        <td>${row.Pression}</td>
-        <td>${row.Niveau_huile}</td>
-        <td>${row.Etat}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-  })
-  .catch(err => {
-    console.error("Erreur de chargement des données :", err);
+    tr.innerHTML = `
+      <td>${row.Heure_date}</td>
+      <td>${row.Temperature}</td>
+      <td>${row.Courant}</td>
+      <td>${row.Pression}</td>
+      <td>${row.Niveau_huile}</td>
+      <td>${row.Etat}</td>
+    `;
+    tbody.appendChild(tr);
   });
 </script>
 
