@@ -1,6 +1,6 @@
 <script>
     const channelID = 2933717;  // Ton Channel ThingSpeak
-    const readAPIKey = "";       // Clé si canal privé sinon vide
+    const readAPIKey = "6C7J88FPA3BL0998";       // Clé si canal privé sinon vide
 
     function fetchData() {
         const url = `https://api.thingspeak.com/channels/${channelID}/fields/1.json?results=1${readAPIKey ? '&api_key=' + readAPIKey : ''}`;
@@ -16,16 +16,10 @@
                     let courant = parseFloat(feed.field2);
                     let pression = parseFloat(feed.field3);
                     let niveauHuileRaw = feed.field4; // Ex: "1" ou "0"
-                    // let etatRaw = feed.field5; // On calcule nous-mêmes
-
-                    // Formatage 2 décimales, ou "N/A" si pas un nombre
-                    temp = !isNaN(temp) ? temp.toFixed(2) : "N/A";
-                    courant = !isNaN(courant) ? courant.toFixed(2) : "N/A";
-                    pression = !isNaN(pression) ? pression.toFixed(2) : "N/A";
 
                     // Niveau huile : selon contact flotteur
-                    // On suppose : "1" = contact ouvert = flotteur haut, "0" = contact fermé = flotteur bas
-                    let niveauHuile = "N/A";
+                    // "1" = contact ouvert = flotteur haut, "0" = contact fermé = flotteur bas
+                    let niveauHuile = null;
                     if (niveauHuileRaw === "1") {
                         niveauHuile = "Haut";
                     } else if (niveauHuileRaw === "0") {
@@ -55,15 +49,30 @@
                     // Date/heure formatée en français
                     const dateHeure = feed.created_at ? new Date(feed.created_at).toLocaleString("fr-FR") : "N/A";
 
-                    // Injection dans le DOM
-                    document.getElementById('data-container').innerHTML = `
-                        <p><i class="fas fa-thermometer-half"></i> Température : <strong>${temp} °C</strong></p>
-                        <p><i class="fas fa-charging-station"></i> Courant : <strong>${courant} A</strong></p>
-                        <p><i class="fas fa-tachometer-alt"></i> Pression : <strong>${pression} bars</strong></p>
-                        <p><i class="fas fa-oil-can"></i> Niveau d'huile : <strong>${niveauHuile}</strong></p>
-                        <p><i class="fas fa-exclamation-triangle"></i> État : <strong>${etat}</strong></p>
-                        <p><i class="fas fa-clock"></i> Date/Heure : <strong>${dateHeure}</strong></p>
-                    `;
+                    // Construction dynamique du HTML en masquant les valeurs non numériques
+                    let html = "";
+
+                    if (!isNaN(temp)) {
+                        html += `<p><i class="fas fa-thermometer-half"></i> Température : <strong>${temp.toFixed(2)} °C</strong></p>`;
+                    }
+
+                    if (!isNaN(courant)) {
+                        html += `<p><i class="fas fa-charging-station"></i> Courant : <strong>${courant.toFixed(2)} A</strong></p>`;
+                    }
+
+                    if (!isNaN(pression)) {
+                        html += `<p><i class="fas fa-tachometer-alt"></i> Pression : <strong>${pression.toFixed(2)} bars</strong></p>`;
+                    }
+
+                    if (niveauHuile !== null) {
+                        html += `<p><i class="fas fa-oil-can"></i> Niveau d'huile : <strong>${niveauHuile}</strong></p>`;
+                    }
+
+                    html += `<p><i class="fas fa-exclamation-triangle"></i> État : <strong>${etat}</strong></p>`;
+                    html += `<p><i class="fas fa-clock"></i> Date/Heure : <strong>${dateHeure}</strong></p>`;
+
+                    document.getElementById('data-container').innerHTML = html;
+
                 } else {
                     document.getElementById('data-container').innerHTML = "<p>ℹAucune donnée trouvée.</p>";
                 }
