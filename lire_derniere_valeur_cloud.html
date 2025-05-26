@@ -76,7 +76,7 @@
 
     <script>
         const channelID = 2933717;  // Ton Channel ThingSpeak
-        const readAPIKey = "";       // Clé API si canal privé sinon vide
+        const readAPIKey = "6C7J88FPA3BL0998";       // Clé API si canal privé sinon vide
 
         function fetchData() {
             const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1${readAPIKey ? '&api_key=' + readAPIKey : ''}`;
