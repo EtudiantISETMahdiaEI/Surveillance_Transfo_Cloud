@@ -2,84 +2,179 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8" />
-    <title>Données Transfo-SITEX</title>
+    <title>Surveillance Transfo-SITEX Temps Réel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-</head>
-<body>
-    <div id="data-container">Chargement des données...</div>
-
-    <script>
-        const channelID = 2933717;
-        const readAPIKey = "6C7J88FPA3BL0998";
-
-        function fetchData() {
-            const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1&api_key=${readAPIKey}`;
-            console.log("Requête vers URL:", url);
-
-            fetch(url)
-                .then(response => {
-                    console.log("Réponse reçue, status:", response.status);
-                    if (!response.ok) throw new Error("HTTP error " + response.status);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Données reçues:", data);
-                    if (data.feeds && data.feeds.length > 0) {
-                        const feed = data.feeds[0];
-                        let temp = parseFloat(feed.field1);
-                        let courant = parseFloat(feed.field2);
-                        let pression = parseFloat(feed.field3);
-
-                        let niveauHuileRaw = (feed.field4 || "").toString().trim().toLowerCase();
-                        let niveauHuile = "N/A";
-
-                        if (niveauHuileRaw === "1" || niveauHuileRaw === "haut") {
-                            niveauHuile = "Haut";
-                        } else if (niveauHuileRaw === "0" || niveauHuileRaw === "bas") {
-                            niveauHuile = "Bas";
-                        }
-
-                        temp = !isNaN(temp) ? temp.toFixed(2) : "N/A";
-                        courant = !isNaN(courant) ? courant.toFixed(2) : "N/A";
-                        pression = !isNaN(pression) ? pression.toFixed(2) : "N/A";
-
-                        let alertes = [];
-                        if (!isNaN(temp)) {
-                            if (temp >= 90) alertes.push("Surchauffe-critique");
-                            else if (temp >= 80) alertes.push("Surchauffe");
-                        }
-                        if (!isNaN(courant) && courant >= 910) alertes.push("Surintensité");
-                        if (!isNaN(pression) && pression >= 3) alertes.push("Surpression");
-                        if (niveauHuile === "Bas") alertes.push("Faible huile");
-
-                        let etat = alertes.length > 0 ? alertes.join(" | ") : "Normal";
-                        const dateHeure = feed.created_at ? new Date(feed.created_at).toLocaleString("fr-FR") : "N/A";
-
-                      const htmlContent = `
-    <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
-    <p><i class="fas fa-thermometer-half"></i> Température : <strong>${temp} °C</strong></p>
-    <p><i class="fas fa-charging-station"></i> Courant : <strong>${courant} A</strong></p>
-    <p><i class="fas fa-tachometer-alt"></i> Pression : <strong>${pression} bars</strong></p>
-    <p><i class="fas fa-oil-can"></i> Niveau d'huile : <strong>${niveauHuile}</strong></p>
-    <p><i class="fas fa-exclamation-triangle"></i> État : <strong>${etat}</strong></p>
-    <p><i class="fas fa-clock"></i> Date/Heure : <strong>${dateHeure}</strong></p>
-`;
-
-console.log("HTML généré :", htmlContent);  // <-- affiche la chaîne HTML complète dans la console
-
-document.getElementById("data-container").innerHTML = htmlContent;
-
-                    } else {
-                        document.getElementById("data-container").innerHTML = "<p>⚠️ Aucune donnée trouvée.</p>";
-                    }
-                })
-                .catch(error => {
-                    console.error("Erreur fetch:", error);
-                    document.getElementById("data-container").innerHTML = `<p>Erreur de chargement : ${error.message}</p>`;
-                });
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; padding: 20px;
+            background: linear-gradient(135deg, #87CEEB, #004080);
+            color: #001f4d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
 
-        fetchData();
+        .card {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 20px;
+            max-width: 450px;
+            width: 100%;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            border: 6px solid #001f4d;
+            animation: borderPulse 3s ease-in-out infinite alternate;
+            transition: box-shadow 0.5s ease;
+            position: relative;
+        }
+
+        @keyframes borderPulse {
+            0% {
+                border-color: #001f4d;
+                box-shadow: 0 0 20px rgba(0, 31, 77, 0.7);
+            }
+            100% {
+                border-color: #87CEEB;
+                box-shadow: 0 0 40px rgba(135, 206, 235, 0.9);
+            }
+        }
+
+        h2 {
+            margin: 0 0 20px 0;
+            font-size: 1.8em;
+            text-align: center;
+            color: #001f4d;
+            user-select: none;
+        }
+
+        p {
+            font-size: 1.15em;
+            margin: 10px 0;
+            color: #003366;
+            user-select: none;
+            transition: color 0.4s ease;
+        }
+
+        p i {
+            margin-right: 12px;
+            color: #004080;
+        }
+
+        strong {
+            color: #000;
+        }
+
+        /* Animation fade-in pour les données */
+        .fade-in {
+            animation: fadeIn 1s ease forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        /* Style du message de chargement */
+        #loading {
+            position: absolute;
+            top: 10px; right: 15px;
+            font-size: 0.9em;
+            color: #0066cc;
+            font-style: italic;
+            user-select: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        #loading.show {
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 500px) {
+            .card {
+                padding: 20px;
+            }
+            h2 {
+                font-size: 1.4em;
+            }
+            p {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card" aria-live="polite" aria-atomic="true">
+        <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
+        <div id="loading">Chargement...</div>
+        <div id="data-container">
+            <p><i class="fas fa-thermometer-half"></i> Température : <strong id="temp">--</strong> °C</p>
+            <p><i class="fas fa-charging-station"></i> Courant : <strong id="courant">--</strong> A</p>
+            <p><i class="fas fa-tachometer-alt"></i> Pression : <strong id="pression">--</strong> bars</p>
+            <p><i class="fas fa-oil-can"></i> Niveau d'huile : <strong id="niveau_huile">--</strong></p>
+            <p><i class="fas fa-exclamation-triangle"></i> État : <strong id="etat">--</strong></p>
+            <p><i class="fas fa-clock"></i> Date/Heure : <strong id="heure_date">--</strong></p>
+        </div>
+    </div>
+
+    <script>
+        const dataContainer = document.getElementById('data-container');
+        const loading = document.getElementById('loading');
+
+        // URL de ton API / JSON distant (à adapter)
+        const apiURL = 'https://tonserveur.com/api/latest_data.json';
+
+        async function fetchData() {
+            try {
+                loading.classList.add('show');
+                const response = await fetch(apiURL, {cache: "no-store"});
+                if (!response.ok) throw new Error('Erreur réseau');
+                const data = await response.json();
+
+                // Met à jour les champs avec animation fade-in
+                updateField('temp', data.Temperature);
+                updateField('courant', data.Courant);
+                updateField('pression', data.Pression);
+                updateField('niveau_huile', data.Niveau_huile);
+                updateField('etat', data.Etat);
+                updateField('heure_date', data.Heure_date);
+
+                loading.classList.remove('show');
+            } catch (e) {
+                console.error('Erreur récupération données:', e);
+                loading.textContent = 'Erreur chargement';
+                setTimeout(() => loading.classList.remove('show'), 3000);
+            }
+        }
+
+        // Fonction pour mettre à jour un champ avec effet fade-in
+        function updateField(id, value) {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            if (el.textContent !== String(value)) {
+                el.textContent = value;
+                el.classList.remove('fade-in');
+                void el.offsetWidth; // reset animation
+                el.classList.add('fade-in');
+            }
+        }
+
+        // Synchroniser le fetch toutes les 5 secondes calées pile
+        function syncFetch(interval = 5) {
+            fetchData();
+            const now = new Date();
+            const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
+            const delay = (interval - (seconds % interval)) * 1000 - milliseconds;
+
+            setTimeout(() => {
+                syncFetch(interval);
+            }, delay);
+        }
+
+        syncFetch(5);
     </script>
 </body>
 </html>
