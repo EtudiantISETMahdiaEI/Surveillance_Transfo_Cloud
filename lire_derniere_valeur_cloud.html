@@ -1,98 +1,40 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Surveillance Transfo-SITEX</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-<style>
-  body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin: 0; padding: 20px;
-    background: #87CEEB;
-    color: #001f4d;
-    display: flex; justify-content: center; align-items: center;
-    min-height: 100vh;
-  }
-
-  .card {
-    background: #fff;
-    border-radius: 20px;
-    padding: 30px;
-    max-width: 420px;
-    width: 100%;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    border: 8px solid #001f4d;
-    animation: borderBlink 2s infinite alternate;
-  }
-
-  @keyframes borderBlink {
-    0% { border-color: #001f4d; }
-    100% { border-color: #ffffff; }
-  }
-
-  h2 {
-    margin-top: 0;
-    text-align: center;
-    font-size: 1.6em;
-  }
-
-  p {
-    font-size: 1.1em;
-    margin: 12px 0;
-  }
-
-  i {
-    margin-right: 8px;
-    color: #001f4d;
-  }
-
-  strong {
-    color: #000;
-  }
-
-  #loading {
-    text-align: center;
-    font-style: italic;
-    color: #555;
-    margin-top: 10px;
-    display: none;
-  }
-
-  /* Animation fade-in pour mise à jour */
-  .fade-in {
-    animation: fadeIn 0.6s ease-in-out;
-  }
-
-  @keyframes fadeIn {
-    from {opacity: 0.2;}
-    to {opacity: 1;}
-  }
-
-  @media (max-width: 500px) {
-    .card { padding: 20px; }
-    h2 { font-size: 1.3em; }
-    p { font-size: 1em; }
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>Surveillance Transformateur - Dernières données</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #loading { color: blue; font-weight: bold; }
+    table { border-collapse: collapse; width: 400px; }
+    td, th { border: 1px solid #ddd; padding: 8px; }
+    th { background-color: #f2f2f2; }
+  </style>
 </head>
 <body>
 
-<div class="card">
-  <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
+<h1>Surveillance Transformateur</h1>
 
-  <p><i class="fas fa-thermometer-half"></i> Température : <strong id="temp">-- °C</strong></p>
-  <p><i class="fas fa-charging-station"></i> Courant : <strong id="courant">-- A</strong></p>
-  <p><i class="fas fa-tachometer-alt"></i> Pression : <strong id="pression">-- bars</strong></p>
-  <p><i class="fas fa-oil-can"></i> Niveau d'huile : <strong id="niveau_huile">--</strong></p>
-  <p><i class="fas fa-exclamation-triangle"></i> État : <strong id="etat">--</strong></p>
-  <p><i class="fas fa-clock"></i> Date/Heure : <strong id="heure_date">--</strong></p>
+<div id="loading">Chargement des données...</div>
 
-  <div id="loading">Chargement des données...</div>
-</div>
+<table>
+  <tr><th>Paramètre</th><th>Valeur</th></tr>
+  <tr><td>Température</td><td id="temp">--</td></tr>
+  <tr><td>Courant</td><td id="courant">--</td></tr>
+  <tr><td>Pression</td><td id="pression">--</td></tr>
+  <tr><td>Niveau d'huile</td><td id="niveau_huile">--</td></tr>
+  <tr><td>État</td><td id="etat">--</td></tr>
+  <tr><td>Date/Heure</td><td id="heure_date">--</td></tr>
+</table>
 
 <script>
-  const apiURL = 'https://tonserveur.com/api/latest_data.json'; // <- à modifier par ton URL d'API
+  // REMPLACE ici par ton vrai channel ID ThingSpeak (nombre uniquement)
+  const channelID = '2933717';  
+  // REMPLACE ici par ta clé API publique (lecture) si nécessaire, sinon laisse vide ''
+  const apiKey = '';
+
+  // Construire l'URL API ThingSpeak
+  const apiURL = `https://api.thingspeak.com/channels/${channelID}/feeds/last.json${apiKey ? '?api_key=' + apiKey : ''}`;
 
   const loading = document.getElementById('loading');
 
@@ -103,21 +45,25 @@
       if (!response.ok) throw new Error('Erreur réseau');
       const data = await response.json();
 
-      updateField('temp', `${data.Temperature} °C`);
-      updateField('courant', `${data.Courant} A`);
-      updateField('pression', `${data.Pression} bars`);
+      // Affiche les données en récupérant les champs field1 à field5
+      updateField('temp', data.field1 ? parseFloat(data.field1).toFixed(2) + ' °C' : '--');
+      updateField('courant', data.field2 ? parseFloat(data.field2).toFixed(2) + ' A' : '--');
+      updateField('pression', data.field3 ? parseFloat(data.field3).toFixed(2) + ' bars' : '--');
 
-      let nh = data.Niveau_huile ? data.Niveau_huile.toString().toLowerCase() : '';
+      // Niveau d'huile - on attend 'haut', 'bas', 'high' ou 'low' dans field4
+      let nh = data.field4 ? data.field4.toString().toLowerCase() : '';
       if (nh === 'haut' || nh === 'high') {
         updateField('niveau_huile', 'Haut');
       } else if (nh === 'bas' || nh === 'low') {
         updateField('niveau_huile', 'Bas');
       } else {
-        updateField('niveau_huile', 'Inconnu');
+        updateField('niveau_huile', '--');
       }
 
-      updateField('etat', data.Etat);
-      updateField('heure_date', data.Heure_date);
+      updateField('etat', data.field5 ? data.field5 : '--');
+
+      // Format date/heure création du message
+      updateField('heure_date', data.created_at ? formatDateTime(data.created_at) : '--');
 
       loading.style.display = 'none';
     } catch (e) {
@@ -132,28 +78,18 @@
 
   function updateField(id, value) {
     const el = document.getElementById(id);
-    if (!el) return;
-    if (el.textContent !== value) {
-      el.textContent = value;
-      el.classList.remove('fade-in');
-      void el.offsetWidth; // reset animation
-      el.classList.add('fade-in');
-    }
+    if (el) el.textContent = value;
   }
 
-  function syncFetch(interval = 5) {
-    fetchData();
-    const now = new Date();
-    const seconds = now.getSeconds();
-    const milliseconds = now.getMilliseconds();
-    const delay = (interval - (seconds % interval)) * 1000 - milliseconds;
-
-    setTimeout(() => {
-      syncFetch(interval);
-    }, delay);
+  function formatDateTime(ts) {
+    const d = new Date(ts);
+    const pad = n => n < 10 ? '0'+n : n;
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
-  syncFetch(5);
+  // Mise à jour toutes les 5 secondes
+  setInterval(fetchData, 5000);
+  fetchData();
 </script>
 
 </body>
