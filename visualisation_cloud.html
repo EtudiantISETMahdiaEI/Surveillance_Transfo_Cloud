@@ -1,101 +1,10 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <title>Données Transfo_SITEX à travers Thingspeak</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f4;
-      padding: 20px;
-      margin: 0;
-    }
-
-    h1 {
-      text-align: center;
-      color: black;
-      font-weight: bold;
-      font-size: 28px;
-      margin-bottom: 10px;
-    }
-
-    h2 {
-      text-align: center;
-      margin-top: 20px;
-    }
-
-    .chart-container {
-      width: 100%;
-      max-width: 800px;
-      margin: 20px auto;
-    }
-
-    canvas {
-      width: 100% !important;
-      height: auto !important;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 40px;
-      background: white;
-    }
-
-    th, td {
-      padding: 10px;
-      border: 1px solid #ccc;
-      text-align: center;
-    }
-
-    th {
-      background-color: #007BFF;
-      color: white;
-    }
-
-    .normal { background-color: #e9ffe9; }
-    .surchauffe, .surchauffe-critique, .surintensite, .surpression, .faible-huile {
-      font-weight: bold;
-    }
-    .surchauffe { background-color: #ffcccc; }
-    .surchauffe-critique { background-color: #ff9999; color: white; }
-    .surintensite { background-color: #ffe5cc; }
-    .surpression { background-color: #d5f4ff; }
-    .faible-huile { background-color: #ffffcc; }
-  </style>
-</head>
-<body>
-
-<h1>Données Transfo_SITEX à travers Thingspeak</h1>
-<h2>Évolution des paramètres</h2>
-
-<div class="chart-container"><canvas id="tempChart"></canvas></div>
-<div class="chart-container"><canvas id="courantChart"></canvas></div>
-<div class="chart-container"><canvas id="pressionChart"></canvas></div>
-<div class="chart-container"><canvas id="huileChart"></canvas></div>
-
-<h2>Données récentes</h2>
-<table id="dataTable">
-  <thead>
-    <tr>
-      <th>Date/Heure</th>
-      <th>Température (°C)</th>
-      <th>Courant (A)</th>
-      <th>Pression (bars)</th>
-      <th>Niveau d'huile</th>
-      <th>État</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
-
+<!-- SEULEMENT LA PARTIE JAVASCRIPT MODIFIÉE -->
 <script>
 const apiKey = "6C7J88FPA3BL0998";
 const channelID = "2933717";
 const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=20&api_key=${apiKey}`;
 
+// Fonction pour convertir la date UTC en format local (date + heure)
 function convertToLocalTime(utcDateStr) {
   const date = new Date(utcDateStr);
   return date.toLocaleString('fr-FR').replace(',', '');
@@ -104,9 +13,9 @@ function convertToLocalTime(utcDateStr) {
 fetch(url)
   .then(response => response.json())
   .then(data => {
-    const feeds = data.feeds.reverse(); // Inverser pour avoir les plus récentes en haut
+    const feeds = data.feeds; // NE PAS inverser ici pour que les plus récentes soient à droite
 
-    const labels = feeds.map(f => convertToLocalTime(f.created_at).split(' ')[1]);
+    const labels = feeds.map(f => convertToLocalTime(f.created_at));
     const temp = feeds.map(f => parseFloat(f.field1));
     const courant = feeds.map(f => parseFloat(f.field2));
     const pression = feeds.map(f => parseFloat(f.field3));
@@ -140,7 +49,7 @@ fetch(url)
               title: { display: true, text: label }
             },
             x: {
-              title: { display: true, text: 'Heure' },
+              title: { display: true, text: 'Date et Heure' },
               ticks: {
                 maxRotation: 45,
                 minRotation: 45,
@@ -173,7 +82,8 @@ fetch(url)
     );
 
     const tbody = document.querySelector("#dataTable tbody");
-    feeds.forEach((f) => {
+    // Affichage dans le tableau inversé (plus récent en haut)
+    feeds.slice().reverse().forEach((f) => {
       const tempVal = parseFloat(f.field1 || 0);
       const courantVal = parseFloat(f.field2 || 0);
       const pressionVal = parseFloat(f.field3 || 0);
@@ -220,8 +130,6 @@ fetch(url)
   })
   .catch(err => console.error("Erreur de chargement ThingSpeak:", err));
 
+// Actualisation automatique toutes les 15 secondes
 setTimeout(() => location.reload(), 15000);
 </script>
-
-</body>
-</html>
