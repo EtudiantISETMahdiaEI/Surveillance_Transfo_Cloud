@@ -14,15 +14,16 @@
                     let temp = parseFloat(feed.field1);
                     let courant = parseFloat(feed.field2);
                     let pression = parseFloat(feed.field3);
-                    let niveauHuileRaw = feed.field4;
+                      let niveauHuileRaw = feed.field4;
 
                     temp = !isNaN(temp) ? temp.toFixed(2) : "N/A";
                     courant = !isNaN(courant) ? courant.toFixed(2) : "N/A";
                     pression = !isNaN(pression) ? pression.toFixed(2) : "N/A";
 
-                    let niveauHuile = "Inconnu";
-                    if (niveauHuileRaw === "1") niveauHuile = "Haut";
-                    else if (niveauHuileRaw === "0") niveauHuile = "Bas";
+
+                      let niveauHuile = "N/A";
+                         if (niveauHuileRaw == 1) niveauHuile = "Haut";
+                     else if (niveauHuileRaw == 0) niveauHuile = "Bas";
 
                     let alertes = [];
 
