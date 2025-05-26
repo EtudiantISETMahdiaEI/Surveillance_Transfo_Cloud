@@ -2,40 +2,11 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Transfo SITEX - Monitoring</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <!-- ✅ Chargement Font Awesome pour les icônes -->
+    <title>Données Transfo-SITEX</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background: #f9f9f9;
-        }
-        #data-container {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h2 {
-            color: #333;
-        }
-        p {
-            font-size: 1.1em;
-        }
-        strong {
-            font-weight: bold;
-        }
-    </style>
 </head>
 <body>
-
-    <div id="data-container">
-        <h2><i class="fas fa-spinner fa-spin"></i> Chargement des données...</h2>
-    </div>
+    <div id="data-container"></div>
 
     <script>
         const channelID = 2933717;
@@ -54,29 +25,22 @@
                         let courant = parseFloat(feed.field2);
                         let pression = parseFloat(feed.field3);
 
-                        // 🔄 Traitement robuste du niveau d'huile
+                        // 💧 Niveau d'huile : robustesse
                         let niveauHuileRaw = (feed.field4 || "").toString().trim().toLowerCase();
                         let niveauHuile = "N/A";
-                        let couleurHuile = "gray";
-                        let iconeHuile = "fas fa-question-circle";
 
                         if (niveauHuileRaw === "1" || niveauHuileRaw === "haut") {
                             niveauHuile = "Haut";
-                            couleurHuile = "green";
-                            iconeHuile = "fas fa-oil-can";
                         } else if (niveauHuileRaw === "0" || niveauHuileRaw === "bas") {
                             niveauHuile = "Bas";
-                            couleurHuile = "red";
-                            iconeHuile = "fas fa-oil-can";
                         }
 
-                        // ✅ Formatage
                         temp = !isNaN(temp) ? temp.toFixed(2) : "N/A";
                         courant = !isNaN(courant) ? courant.toFixed(2) : "N/A";
                         pression = !isNaN(pression) ? pression.toFixed(2) : "N/A";
 
-                        // ✅ Alerte
                         let alertes = [];
+
                         if (!isNaN(temp)) {
                             if (temp >= 90) alertes.push("Surchauffe-critique");
                             else if (temp >= 80) alertes.push("Surchauffe");
@@ -88,48 +52,44 @@
                         let etat = alertes.length > 0 ? alertes.join(" | ") : "Normal";
                         const dateHeure = feed.created_at ? new Date(feed.created_at).toLocaleString("fr-FR") : "N/A";
 
-                        // ✅ Affichage
                         document.getElementById('data-container').innerHTML = `
                             <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
                             <p><i class="fas fa-thermometer-half"></i> Température : <strong>${temp} °C</strong></p>
                             <p><i class="fas fa-charging-station"></i> Courant : <strong>${courant} A</strong></p>
                             <p><i class="fas fa-tachometer-alt"></i> Pression : <strong>${pression} bars</strong></p>
-                            <p style="color:${couleurHuile}"><i class="${iconeHuile}"></i> Niveau d'huile : <strong>${niveauHuile}</strong></p>
+                            <p><i class="fas fa-oil-can"></i> Niveau d'huile : <strong>${niveauHuile}</strong></p>
                             <p><i class="fas fa-exclamation-triangle"></i> État : <strong>${etat}</strong></p>
                             <p><i class="fas fa-clock"></i> Date/Heure : <strong>${dateHeure}</strong></p>
                         `;
                     } else {
                         document.getElementById('data-container').innerHTML = `
                             <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
-                            <p>⚠ Aucune donnée trouvée.</p>
+                            <p>ℹ Aucune donnée trouvée.</p>
                         `;
                     }
                 })
                 .catch(error => {
                     document.getElementById('data-container').innerHTML = `
                         <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
-                        <p>❌ Erreur de chargement : ${error}</p>
+                        <p>Erreur de chargement : ${error}</p>
                     `;
                 });
         }
 
-        // 🔁 Synchro toutes les 15 secondes
-        const synchronizeRefresh = () => {
+        // Synchronisation exacte
+        function synchronizeRefresh() {
             const now = Date.now();
             const delay = 5000 - (now % 5000);
 
             setTimeout(() => {
                 const seconds = new Date().getSeconds();
-                if (seconds % 15 === 0) {
-                    fetchData();
-                }
+                if (seconds % 15 === 0) fetchData();
                 synchronizeRefresh();
             }, delay);
-        };
+        }
 
-        fetchData();
-        synchronizeRefresh();
+        fetchData();           // Appel initial
+        synchronizeRefresh();  // Rafraîchissement
     </script>
-
 </body>
 </html>
