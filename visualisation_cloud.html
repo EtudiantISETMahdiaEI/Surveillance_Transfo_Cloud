@@ -56,17 +56,19 @@
     }
 
     .normal { background-color: #e9ffe9; }
-    .surchauffe { background-color: #ffcccc; font-weight: bold; }
-    .surchauffe-critique { background-color: #ff9999; font-weight: bold; color: white; }
-    .surintensite { background-color: #ffe5cc; font-weight: bold; }
-    .surpression { background-color: #d5f4ff; font-weight: bold; }
-    .haut { background-color: #ccffcc; }
-    .bas { background-color: #ffffcc; }
+    .surchauffe, .surchauffe-critique, .surintensite, .surpression, .faible-huile {
+      font-weight: bold;
+    }
+    .surchauffe { background-color: #ffcccc; }
+    .surchauffe-critique { background-color: #ff9999; color: white; }
+    .surintensite { background-color: #ffe5cc; }
+    .surpression { background-color: #d5f4ff; }
+    .faible-huile { background-color: #ffffcc; }
   </style>
 </head>
 <body>
 
-<h1>Données Transfo_SITEX par Thingspeak</h1>
+<h1>Données Transfo_SITEX à travers Thingspeak</h1>
 <h2>Évolution des paramètres</h2>
 
 <div class="chart-container"><canvas id="tempChart"></canvas></div>
@@ -96,23 +98,20 @@ const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results
 
 function convertToLocalTime(utcDateStr) {
   const date = new Date(utcDateStr);
-  // Convert to local time (France GMT+1 / GMT+2)
-  date.setHours(date.getHours() + 1);
   return date.toLocaleString('fr-FR').replace(',', '');
 }
 
 fetch(url)
   .then(response => response.json())
   .then(data => {
-    const feeds = data.feeds; // garder l’ordre chronologique (gauche → droite)
+    const feeds = data.feeds.reverse(); // Inverser pour avoir les plus récentes en haut
 
-    const labels = feeds.map(f => convertToLocalTime(f.created_at).split(' ')[1]); // Heure
+    const labels = feeds.map(f => convertToLocalTime(f.created_at).split(' ')[1]);
     const temp = feeds.map(f => parseFloat(f.field1));
     const courant = feeds.map(f => parseFloat(f.field2));
     const pression = feeds.map(f => parseFloat(f.field3));
     const niveauHuile = feeds.map(f => f.field4 === "Haut" ? 1 : 0);
 
-    // Graphiques
     const makeChart = (ctxId, label, dataArr, color, yMax, yStep, unit, customTicks = null) => {
       new Chart(document.getElementById(ctxId).getContext('2d'), {
         type: 'line',
@@ -173,40 +172,40 @@ fetch(url)
       value => value === 1 ? "Haut" : "Bas"
     );
 
-    // Tableau
     const tbody = document.querySelector("#dataTable tbody");
-    feeds.forEach((f, i) => {
+    feeds.forEach((f) => {
       const tempVal = parseFloat(f.field1 || 0);
       const courantVal = parseFloat(f.field2 || 0);
       const pressionVal = parseFloat(f.field3 || 0);
       const niveau = f.field4 || "-";
 
-      let etat = "Normal";
+      const etats = [];
       let className = "normal";
 
       if (tempVal >= 90) {
-        etat = "Surchauffe-critique";
+        etats.push("Surchauffe-critique");
         className = "surchauffe-critique";
       } else if (tempVal >= 80) {
-        etat = "Surchauffe";
+        etats.push("Surchauffe");
         className = "surchauffe";
       }
 
       if (courantVal >= 910) {
-        etat = "Surintensité";
+        etats.push("Surintensité");
         className = "surintensite";
       }
 
       if (pressionVal >= 3) {
-        etat = "Surpression";
+        etats.push("Surpression");
         className = "surpression";
       }
 
-      if (niveau === "Haut") {
-        className = "haut";
-      } else if (niveau === "Bas") {
-        className = "bas";
+      if (niveau === "Bas") {
+        etats.push("Faible_huile");
+        className = "faible-huile";
       }
+
+      const etat = etats.length > 0 ? etats.join(" + ") : "Normal";
 
       const row = `<tr class="${className}">
         <td>${convertToLocalTime(f.created_at)}</td>
@@ -221,7 +220,6 @@ fetch(url)
   })
   .catch(err => console.error("Erreur de chargement ThingSpeak:", err));
 
-// Auto-refresh toutes les 15 secondes
 setTimeout(() => location.reload(), 15000);
 </script>
 
