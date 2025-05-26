@@ -14,17 +14,29 @@
                     let temp = parseFloat(feed.field1);
                     let courant = parseFloat(feed.field2);
                     let pression = parseFloat(feed.field3);
-                      let niveauHuileRaw = feed.field4;
 
+                    // 🔄 Traitement robuste du niveau d'huile
+                    let niveauHuileRaw = (feed.field4 || "").toString().trim().toLowerCase();
+                    let niveauHuile = "N/A";
+                    let couleurHuile = "gray";
+                    let iconeHuile = "fas fa-question-circle";
+
+                    if (niveauHuileRaw === "1" || niveauHuileRaw === "haut") {
+                        niveauHuile = "Haut";
+                        couleurHuile = "green";
+                        iconeHuile = "fas fa-oil-can";
+                    } else if (niveauHuileRaw === "0" || niveauHuileRaw === "bas") {
+                        niveauHuile = "Bas";
+                        couleurHuile = "red";
+                        iconeHuile = "fas fa-oil-can";
+                    }
+
+                    // ✅ Formatage des données
                     temp = !isNaN(temp) ? temp.toFixed(2) : "N/A";
                     courant = !isNaN(courant) ? courant.toFixed(2) : "N/A";
                     pression = !isNaN(pression) ? pression.toFixed(2) : "N/A";
 
-
-                      let niveau_huile = "N/A";
-                         if (niveau_huileRaw == 1) niveau_huile = "Haut";
-                     else if (niveau_huileRaw == 0) niveau_huile = "Bas";
-
+                    // ✅ Détection d'anomalies
                     let alertes = [];
 
                     if (!isNaN(temp)) {
@@ -38,15 +50,17 @@
                     let etat = alertes.length > 0 ? alertes.join(" | ") : "Normal";
                     const dateHeure = feed.created_at ? new Date(feed.created_at).toLocaleString("fr-FR") : "N/A";
 
+                    // ✅ Affichage HTML
                     document.getElementById('data-container').innerHTML = `
                         <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
                         <p><i class="fas fa-thermometer-half"></i> Température : <strong>${temp} °C</strong></p>
                         <p><i class="fas fa-charging-station"></i> Courant : <strong>${courant} A</strong></p>
                         <p><i class="fas fa-tachometer-alt"></i> Pression : <strong>${pression} bars</strong></p>
-                        <p><i class="fas fa-oil-can"></i> Niveau d'huile : <strong>${niveauHuile}</strong></p>
+                        <p style="color:${couleurHuile}"><i class="${iconeHuile}"></i> Niveau d'huile : <strong>${niveauHuile}</strong></p>
                         <p><i class="fas fa-exclamation-triangle"></i> État : <strong>${etat}</strong></p>
                         <p><i class="fas fa-clock"></i> Date/Heure : <strong>${dateHeure}</strong></p>
                     `;
+
                 } else {
                     document.getElementById('data-container').innerHTML = `
                         <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
@@ -62,24 +76,24 @@
             });
     }
 
-    // Synchronisation exacte sur les secondes du système (5s)
+    // 🔁 Rafraîchissement synchro toutes les 5 secondes
     const synchronizeRefresh = () => {
         const now = Date.now();
-        const delay = 5000 - (now % 5000);
+        const delay = 5000 - (now % 5000); // synchronise pile à :00, :05, :10...
 
         setTimeout(() => {
             const seconds = new Date().getSeconds();
 
-            // Appel des données toutes les 15 secondes
+            // Actualisation toutes les 15 secondes uniquement
             if (seconds % 15 === 0) {
                 fetchData();
             }
 
-            // Boucle continue toutes les 5s
+            // Relance la boucle toutes les 5 secondes
             synchronizeRefresh();
         }, delay);
     };
 
-    fetchData(); // Appel initial
-    synchronizeRefresh(); // Démarre la synchronisation
+    fetchData();        // 1ère récupération immédiate
+    synchronizeRefresh(); // Démarre la synchro
 </script>
