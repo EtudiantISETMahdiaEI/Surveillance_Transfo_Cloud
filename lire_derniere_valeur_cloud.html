@@ -1,99 +1,135 @@
-<script>
-    const channelID = 2933717;
-    const readAPIKey = "6C7J88FPA3BL0998";
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Transfo SITEX - Monitoring</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    function fetchData() {
-        const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1${readAPIKey ? '&api_key=' + readAPIKey : ''}`;
+    <!-- ✅ Chargement Font Awesome pour les icônes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                if (data.feeds && data.feeds.length > 0) {
-                    const feed = data.feeds[0];
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        #data-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+        }
+        p {
+            font-size: 1.1em;
+        }
+        strong {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
 
-                    let temp = parseFloat(feed.field1);
-                    let courant = parseFloat(feed.field2);
-                    let pression = parseFloat(feed.field3);
+    <div id="data-container">
+        <h2><i class="fas fa-spinner fa-spin"></i> Chargement des données...</h2>
+    </div>
 
-                    // 🔄 Traitement robuste du niveau d'huile
-                    let niveauHuileRaw = (feed.field4 || "").toString().trim().toLowerCase();
-                    let niveauHuile = "N/A";
-                    let couleurHuile = "gray";
-                    let iconeHuile = "fas fa-question-circle";
+    <script>
+        const channelID = 2933717;
+        const readAPIKey = "6C7J88FPA3BL0998";
 
-                    if (niveauHuileRaw === "1" || niveauHuileRaw === "haut") {
-                        niveauHuile = "Haut";
-                        couleurHuile = "green";
-                        iconeHuile = "fas fa-oil-can";
-                    } else if (niveauHuileRaw === "0" || niveauHuileRaw === "bas") {
-                        niveauHuile = "Bas";
-                        couleurHuile = "red";
-                        iconeHuile = "fas fa-oil-can";
+        function fetchData() {
+            const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1${readAPIKey ? '&api_key=' + readAPIKey : ''}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.feeds && data.feeds.length > 0) {
+                        const feed = data.feeds[0];
+
+                        let temp = parseFloat(feed.field1);
+                        let courant = parseFloat(feed.field2);
+                        let pression = parseFloat(feed.field3);
+
+                        // 🔄 Traitement robuste du niveau d'huile
+                        let niveauHuileRaw = (feed.field4 || "").toString().trim().toLowerCase();
+                        let niveauHuile = "N/A";
+                        let couleurHuile = "gray";
+                        let iconeHuile = "fas fa-question-circle";
+
+                        if (niveauHuileRaw === "1" || niveauHuileRaw === "haut") {
+                            niveauHuile = "Haut";
+                            couleurHuile = "green";
+                            iconeHuile = "fas fa-oil-can";
+                        } else if (niveauHuileRaw === "0" || niveauHuileRaw === "bas") {
+                            niveauHuile = "Bas";
+                            couleurHuile = "red";
+                            iconeHuile = "fas fa-oil-can";
+                        }
+
+                        // ✅ Formatage
+                        temp = !isNaN(temp) ? temp.toFixed(2) : "N/A";
+                        courant = !isNaN(courant) ? courant.toFixed(2) : "N/A";
+                        pression = !isNaN(pression) ? pression.toFixed(2) : "N/A";
+
+                        // ✅ Alerte
+                        let alertes = [];
+                        if (!isNaN(temp)) {
+                            if (temp >= 90) alertes.push("Surchauffe-critique");
+                            else if (temp >= 80) alertes.push("Surchauffe");
+                        }
+                        if (!isNaN(courant) && courant >= 910) alertes.push("Surintensité");
+                        if (!isNaN(pression) && pression >= 3) alertes.push("Surpression");
+                        if (niveauHuile === "Bas") alertes.push("Faible huile");
+
+                        let etat = alertes.length > 0 ? alertes.join(" | ") : "Normal";
+                        const dateHeure = feed.created_at ? new Date(feed.created_at).toLocaleString("fr-FR") : "N/A";
+
+                        // ✅ Affichage
+                        document.getElementById('data-container').innerHTML = `
+                            <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
+                            <p><i class="fas fa-thermometer-half"></i> Température : <strong>${temp} °C</strong></p>
+                            <p><i class="fas fa-charging-station"></i> Courant : <strong>${courant} A</strong></p>
+                            <p><i class="fas fa-tachometer-alt"></i> Pression : <strong>${pression} bars</strong></p>
+                            <p style="color:${couleurHuile}"><i class="${iconeHuile}"></i> Niveau d'huile : <strong>${niveauHuile}</strong></p>
+                            <p><i class="fas fa-exclamation-triangle"></i> État : <strong>${etat}</strong></p>
+                            <p><i class="fas fa-clock"></i> Date/Heure : <strong>${dateHeure}</strong></p>
+                        `;
+                    } else {
+                        document.getElementById('data-container').innerHTML = `
+                            <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
+                            <p>⚠ Aucune donnée trouvée.</p>
+                        `;
                     }
-
-                    // ✅ Formatage des données
-                    temp = !isNaN(temp) ? temp.toFixed(2) : "N/A";
-                    courant = !isNaN(courant) ? courant.toFixed(2) : "N/A";
-                    pression = !isNaN(pression) ? pression.toFixed(2) : "N/A";
-
-                    // ✅ Détection d'anomalies
-                    let alertes = [];
-
-                    if (!isNaN(temp)) {
-                        if (temp >= 90) alertes.push("Surchauffe-critique");
-                        else if (temp >= 80) alertes.push("Surchauffe");
-                    }
-                    if (!isNaN(courant) && courant >= 910) alertes.push("Surintensité");
-                    if (!isNaN(pression) && pression >= 3) alertes.push("Surpression");
-                    if (niveauHuile === "Bas") alertes.push("Faible huile");
-
-                    let etat = alertes.length > 0 ? alertes.join(" | ") : "Normal";
-                    const dateHeure = feed.created_at ? new Date(feed.created_at).toLocaleString("fr-FR") : "N/A";
-
-                    // ✅ Affichage HTML
+                })
+                .catch(error => {
                     document.getElementById('data-container').innerHTML = `
                         <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
-                        <p><i class="fas fa-thermometer-half"></i> Température : <strong>${temp} °C</strong></p>
-                        <p><i class="fas fa-charging-station"></i> Courant : <strong>${courant} A</strong></p>
-                        <p><i class="fas fa-tachometer-alt"></i> Pression : <strong>${pression} bars</strong></p>
-                        <p style="color:${couleurHuile}"><i class="${iconeHuile}"></i> Niveau d'huile : <strong>${niveauHuile}</strong></p>
-                        <p><i class="fas fa-exclamation-triangle"></i> État : <strong>${etat}</strong></p>
-                        <p><i class="fas fa-clock"></i> Date/Heure : <strong>${dateHeure}</strong></p>
+                        <p>❌ Erreur de chargement : ${error}</p>
                     `;
+                });
+        }
 
-                } else {
-                    document.getElementById('data-container').innerHTML = `
-                        <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
-                        <p>ℹ Aucune donnée trouvée.</p>
-                    `;
+        // 🔁 Synchro toutes les 15 secondes
+        const synchronizeRefresh = () => {
+            const now = Date.now();
+            const delay = 5000 - (now % 5000);
+
+            setTimeout(() => {
+                const seconds = new Date().getSeconds();
+                if (seconds % 15 === 0) {
+                    fetchData();
                 }
-            })
-            .catch(error => {
-                document.getElementById('data-container').innerHTML = `
-                    <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
-                    <p> Erreur de chargement : ${error}</p>
-                `;
-            });
-    }
+                synchronizeRefresh();
+            }, delay);
+        };
 
-    // 🔁 Rafraîchissement synchro toutes les 5 secondes
-    const synchronizeRefresh = () => {
-        const now = Date.now();
-        const delay = 5000 - (now % 5000); // synchronise pile à :00, :05, :10...
+        fetchData();
+        synchronizeRefresh();
+    </script>
 
-        setTimeout(() => {
-            const seconds = new Date().getSeconds();
-
-            // Actualisation toutes les 15 secondes uniquement
-            if (seconds % 15 === 0) {
-                fetchData();
-            }
-
-            // Relance la boucle toutes les 5 secondes
-            synchronizeRefresh();
-        }, delay);
-    };
-
-    fetchData();        // 1ère récupération immédiate
-    synchronizeRefresh(); // Démarre la synchro
-</script>
+</body>
+</html>
