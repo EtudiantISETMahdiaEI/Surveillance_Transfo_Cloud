@@ -1,31 +1,35 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Données Transfo-SITEX</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 <body>
-    <div id="data-container"></div>
+    <div id="data-container">Chargement des données...</div>
 
     <script>
         const channelID = 2933717;
         const readAPIKey = "6C7J88FPA3BL0998";
 
         function fetchData() {
-            const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1${readAPIKey ? '&api_key=' + readAPIKey : ''}`;
+            const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1&api_key=${readAPIKey}`;
+            console.log("Requête vers URL:", url);
 
             fetch(url)
-                .then(response => response.json())
+                .then(response => {
+                    console.log("Réponse reçue, status:", response.status);
+                    if (!response.ok) throw new Error("HTTP error " + response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log("Données reçues:", data);
                     if (data.feeds && data.feeds.length > 0) {
                         const feed = data.feeds[0];
-
                         let temp = parseFloat(feed.field1);
                         let courant = parseFloat(feed.field2);
                         let pression = parseFloat(feed.field3);
 
-                        // 💧 Niveau d'huile : robustesse
                         let niveauHuileRaw = (feed.field4 || "").toString().trim().toLowerCase();
                         let niveauHuile = "N/A";
 
@@ -40,7 +44,6 @@
                         pression = !isNaN(pression) ? pression.toFixed(2) : "N/A";
 
                         let alertes = [];
-
                         if (!isNaN(temp)) {
                             if (temp >= 90) alertes.push("Surchauffe-critique");
                             else if (temp >= 80) alertes.push("Surchauffe");
@@ -52,7 +55,7 @@
                         let etat = alertes.length > 0 ? alertes.join(" | ") : "Normal";
                         const dateHeure = feed.created_at ? new Date(feed.created_at).toLocaleString("fr-FR") : "N/A";
 
-                        document.getElementById('data-container').innerHTML = `
+                        document.getElementById("data-container").innerHTML = `
                             <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
                             <p><i class="fas fa-thermometer-half"></i> Température : <strong>${temp} °C</strong></p>
                             <p><i class="fas fa-charging-station"></i> Courant : <strong>${courant} A</strong></p>
@@ -62,34 +65,16 @@
                             <p><i class="fas fa-clock"></i> Date/Heure : <strong>${dateHeure}</strong></p>
                         `;
                     } else {
-                        document.getElementById('data-container').innerHTML = `
-                            <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
-                            <p>ℹ Aucune donnée trouvée.</p>
-                        `;
+                        document.getElementById("data-container").innerHTML = "<p>⚠️ Aucune donnée trouvée.</p>";
                     }
                 })
                 .catch(error => {
-                    document.getElementById('data-container').innerHTML = `
-                        <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
-                        <p>Erreur de chargement : ${error}</p>
-                    `;
+                    console.error("Erreur fetch:", error);
+                    document.getElementById("data-container").innerHTML = `<p>Erreur de chargement : ${error.message}</p>`;
                 });
         }
 
-        // Synchronisation exacte
-        function synchronizeRefresh() {
-            const now = Date.now();
-            const delay = 5000 - (now % 5000);
-
-            setTimeout(() => {
-                const seconds = new Date().getSeconds();
-                if (seconds % 15 === 0) fetchData();
-                synchronizeRefresh();
-            }, delay);
-        }
-
-        fetchData();           // Appel initial
-        synchronizeRefresh();  // Rafraîchissement
+        fetchData();
     </script>
 </body>
 </html>
