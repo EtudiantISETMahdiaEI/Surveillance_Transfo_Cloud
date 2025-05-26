@@ -2,94 +2,131 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Surveillance Transformateur - Dernières données</title>
+  <title>Surveillance Transformateur - Transfo-SITEX</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    #loading { color: blue; font-weight: bold; }
-    table { border-collapse: collapse; width: 400px; }
-    td, th { border: 1px solid #ddd; padding: 8px; }
-    th { background-color: #f2f2f2; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #87CEEB; /* Bleu ciel */
+      color: #001f4d;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .card {
+      background-color: white;
+      padding: 30px;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 450px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      border: 8px solid #001f4d;
+      animation: pulseBorder 2s infinite alternate;
+    }
+
+    @keyframes pulseBorder {
+      0%   { border-color: #001f4d; }
+      100% { border-color: #ffffff; }
+    }
+
+    h2 {
+      text-align: center;
+      margin-top: 0;
+      color: #001f4d;
+    }
+
+    p {
+      font-size: 1.1em;
+      margin: 12px 0;
+    }
+
+    i {
+      margin-right: 8px;
+      color: #001f4d;
+    }
+
+    strong {
+      color: #000;
+    }
+
+    #loading {
+      text-align: center;
+      font-weight: bold;
+      color: blue;
+    }
+
+    @media (max-width: 500px) {
+      .card {
+        padding: 20px;
+      }
+    }
   </style>
 </head>
 <body>
 
-<h1>Surveillance Transformateur</h1>
-
-<div id="loading">Chargement des données...</div>
-
-<table>
-  <tr><th>Paramètre</th><th>Valeur</th></tr>
-  <tr><td>Température</td><td id="temp">--</td></tr>
-  <tr><td>Courant</td><td id="courant">--</td></tr>
-  <tr><td>Pression</td><td id="pression">--</td></tr>
-  <tr><td>Niveau d'huile</td><td id="niveau_huile">--</td></tr>
-  <tr><td>État</td><td id="etat">--</td></tr>
-  <tr><td>Date/Heure</td><td id="heure_date">--</td></tr>
-</table>
+<div class="card">
+  <h2><i class="fas fa-bolt"></i> Données Transfo-SITEX</h2>
+  <div id="loading">Chargement des données...</div>
+  <p><i class="fas fa-thermometer-half"></i> Température : <strong id="temp">--</strong></p>
+  <p><i class="fas fa-charging-station"></i> Courant : <strong id="courant">--</strong></p>
+  <p><i class="fas fa-tachometer-alt"></i> Pression : <strong id="pression">--</strong></p>
+  <p><i class="fas fa-oil-can"></i> Niveau d'huile : <strong id="niveau_huile">--</strong></p>
+  <p><i class="fas fa-exclamation-triangle"></i> État : <strong id="etat">--</strong></p>
+  <p><i class="fas fa-clock"></i> Date/Heure : <strong id="heure_date">--</strong></p>
+</div>
 
 <script>
-  // REMPLACE ici par ton vrai channel ID ThingSpeak (nombre uniquement)
-  const channelID = '2933717';  
-  // REMPLACE ici par ta clé API publique (lecture) si nécessaire, sinon laisse vide ''
+  const channelID = '2933717';
   const apiKey = '6C7J88FPA3BL0998';
-
-  // Construire l'URL API ThingSpeak
   const apiURL = `https://api.thingspeak.com/channels/${channelID}/feeds/last.json${apiKey ? '?api_key=' + apiKey : ''}`;
-
-  const loading = document.getElementById('loading');
 
   async function fetchData() {
     try {
-      loading.style.display = 'block';
-      const response = await fetch(apiURL, {cache: "no-store"});
-      if (!response.ok) throw new Error('Erreur réseau');
+      document.getElementById('loading').style.display = 'block';
+      const response = await fetch(apiURL, { cache: "no-store" });
+      if (!response.ok) throw new Error("Erreur de réseau");
+
       const data = await response.json();
 
-      // Affiche les données en récupérant les champs field1 à field5
-      updateField('temp', data.field1 ? parseFloat(data.field1).toFixed(2) + ' °C' : '--');
-      updateField('courant', data.field2 ? parseFloat(data.field2).toFixed(2) + ' A' : '--');
-      updateField('pression', data.field3 ? parseFloat(data.field3).toFixed(2) + ' bars' : '--');
+      update('temp', data.field1 ? parseFloat(data.field1).toFixed(2) + ' °C' : '--');
+      update('courant', data.field2 ? parseFloat(data.field2).toFixed(2) + ' A' : '--');
+      update('pression', data.field3 ? parseFloat(data.field3).toFixed(2) + ' bars' : '--');
 
-      // Niveau d'huile - on attend 'haut', 'bas', 'high' ou 'low' dans field4
-      let nh = data.field4 ? data.field4.toString().toLowerCase() : '';
-      if (nh === 'haut' || nh === 'high') {
-        updateField('niveau_huile', 'Haut');
-      } else if (nh === 'bas' || nh === 'low') {
-        updateField('niveau_huile', 'Bas');
-      } else {
-        updateField('niveau_huile', '--');
-      }
+      const nh = data.field4 ? data.field4.toString().toLowerCase() : '';
+      update('niveau_huile',
+        nh === 'haut' || nh === 'high' ? 'Haut' :
+        nh === 'bas' || nh === 'low' ? 'Bas' : '--');
 
-      updateField('etat', data.field5 ? data.field5 : '--');
+      update('etat', data.field5 ?? '--');
+      update('heure_date', data.created_at ? formatDateTime(data.created_at) : '--');
 
-      // Format date/heure création du message
-      updateField('heure_date', data.created_at ? formatDateTime(data.created_at) : '--');
-
-      loading.style.display = 'none';
-    } catch (e) {
-      console.error('Erreur récupération données:', e);
-      loading.textContent = 'Erreur chargement';
+      document.getElementById('loading').style.display = 'none';
+    } catch (error) {
+      console.error("Erreur:", error);
+      document.getElementById('loading').textContent = "❌ Erreur de chargement";
       setTimeout(() => {
-        loading.style.display = 'none';
-        loading.textContent = 'Chargement des données...';
-      }, 3000);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading').textContent = 'Chargement des données...';
+      }, 4000);
     }
   }
 
-  function updateField(id, value) {
+  function update(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value;
   }
 
   function formatDateTime(ts) {
     const d = new Date(ts);
-    const pad = n => n < 10 ? '0'+n : n;
-    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const pad = n => n < 10 ? '0' + n : n;
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
-  // Mise à jour toutes les 5 secondes
-  setInterval(fetchData, 5000);
-  fetchData();
+  setInterval(fetchData, 15000); // Rafraîchissement toutes les 15 secondes
+  fetchData(); // Appel initial
 </script>
 
 </body>
