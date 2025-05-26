@@ -1,83 +1,134 @@
-<div id="data-container">Chargement des données...</div>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Données Transfo SITEX - ThingSpeak</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0; padding: 20px;
+    background: #87CEEB;
+    color: #001f4d;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .card {
+    background: #fff;
+    padding: 30px;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    border: 8px solid #001f4d;
+    animation: borderBlink 2s infinite alternate;
+    text-align: center;
+  }
+  @keyframes borderBlink {
+    0% { border-color: #001f4d; }
+    100% { border-color: #fff; }
+  }
+  h2 {
+    margin-top: 0;
+    font-size: 1.6em;
+    color: #001f4d;
+  }
+  p {
+    font-size: 1.1em;
+    margin: 12px 0;
+  }
+  i {
+    margin-right: 8px;
+    color: #001f4d;
+  }
+  strong {
+    color: #000;
+  }
+  #loading {
+    font-style: italic;
+    color: #555;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h2><i class="fas fa-bolt"></i> Données récentes Transfo-SITEX</h2>
+    <div id="loading">Chargement des données...</div>
+    <div id="data" style="display:none;">
+      <p><i class="fas fa-thermometer-half"></i> Température : <strong id="temp">--</strong> °C</p>
+      <p><i class="fas fa-charging-station"></i> Courant : <strong id="courant">--</strong> A</p>
+      <p><i class="fas fa-tachometer-alt"></i> Pression : <strong id="pression">--</strong> bars</p>
+      <p><i class="fas fa-exclamation-triangle"></i> État : <strong id="etat">--</strong></p>
+      <p><i class="fas fa-clock"></i> Date/Heure : <strong id="heure">--</strong></p>
+    </div>
+  </div>
 
 <script>
-    const channelID = 2933717;  // Ton Channel ThingSpeak
-    const readAPIKey = "6C7J88FPA3BL0998";       // Clé si canal privé sinon vide
+// Remplace par ton channel ID ThingSpeak
+const channelID = '2933717';
 
-    function fetchData() {
-        const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1${readAPIKey ? '&api_key=' + readAPIKey : ''}`;
+// Si tu as une clé API publique (lecture), la mettre ici sinon vide ''
+const apiKey = ''; // pas obligatoire si ton channel est public
 
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                if (data.feeds && data.feeds.length > 0) {
-                    const feed = data.feeds[0];
+// Fonction pour formater la date en jj/mm/aaaa hh:mm:ss
+function formatDateTime(ts) {
+  const d = new Date(ts);
+  const pad = n => n < 10 ? '0'+n : n;
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
 
-                    let temp = feed.field1 ? parseFloat(feed.field1) : NaN;
-                    let courant = feed.field2 ? parseFloat(feed.field2) : NaN;
-                    let pression = feed.field3 ? parseFloat(feed.field3) : NaN;
-                    let niveauHuileRaw = (feed.field4 !== undefined) ? feed.field4 : null;
+async function fetchData() {
+  try {
+    // API ThingSpeak JSON : dernières données
+    let url = `https://api.thingspeak.com/channels/${channelID}/feeds/last.json`;
+    if(apiKey) url += `?api_key=${apiKey}`;
 
-                    let niveauHuile = null;
-                    if (niveauHuileRaw === "1") {
-                        niveauHuile = "Haut";
-                    } else if (niveauHuileRaw === "0") {
-                        niveauHuile = "Bas";
-                    }
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Erreur réseau');
 
-                    let alertes = [];
+    const data = await response.json();
 
-                    if (!isNaN(temp)) {
-                        if (temp >= 90) alertes.push("Surchauffe-critique");
-                        else if (temp >= 80) alertes.push("Surchauffe");
-                    }
-                    if (!isNaN(courant) && courant >= 910) {
-                        alertes.push("Surintensité");
-                    }
-                    if (!isNaN(pression) && pression >= 3) {
-                        alertes.push("Surpression");
-                    }
-                    if (niveauHuile === "Bas") {
-                        alertes.push("Faible_huile");
-                    }
+    // Mise à jour des champs selon les fieldX de ton channel
+    // Ici on suppose : field1=Temperature, field2=Courant, field3=Pression, field4=Etat
+    // Si tu as Niveau_huile (field5) tu peux ajouter aussi
+    document.getElementById('temp').textContent = parseFloat(data.field1).toFixed(2);
+    document.getElementById('courant').textContent = parseFloat(data.field2).toFixed(2);
+    document.getElementById('pression').textContent = parseFloat(data.field3).toFixed(2);
 
-                    let etat = alertes.length > 0 ? alertes.join(" | ") : "Normal";
+    // Pour état, on récupère directement field5 ou adapte selon ta config
+    // Ton JSON ne semble pas avoir field4 = "Etat", donc on va gérer ça par exemple via field5
+    document.getElementById('etat').textContent = data.field5 ? data.field5 : 'Normal';
 
-                    const dateHeure = feed.created_at ? new Date(feed.created_at).toLocaleString("fr-FR") : "N/A";
+    // Date/heure formatée à partir de created_at (timestamp UTC)
+    document.getElementById('heure').textContent = formatDateTime(data.created_at);
 
-                    let html = "";
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('data').style.display = 'block';
 
-                    if (!isNaN(temp)) {
-                        html += `<p><i class="fas fa-thermometer-half"></i> Température : <strong>${temp.toFixed(2)} °C</strong></p>`;
-                    } else {
-                        html += `<p>Température : <em>Non disponible</em></p>`;
-                    }
+  } catch(err) {
+    document.getElementById('loading').textContent = 'Erreur de chargement des données.';
+    document.getElementById('data').style.display = 'none';
+    console.error(err);
+  }
+}
 
-                    if (!isNaN(courant)) {
-                        html += `<p><i class="fas fa-charging-station"></i> Courant : <strong>${courant.toFixed(2)} A</strong></p>`;
-                    }
+// Rafraîchissement toutes les 15 sec synchronisé sur l'horloge
+function syncRefresh(interval = 15) {
+  const now = new Date();
+  const seconds = now.getSeconds();
+  const milliseconds = now.getMilliseconds();
+  const delay = (interval - (seconds % interval)) * 15000 - milliseconds;
 
-                    if (!isNaN(pression)) {
-                        html += `<p><i class="fas fa-tachometer-alt"></i> Pression : <strong>${pression.toFixed(2)} bars</strong></p>`;
-                    }
-
-                    if (niveauHuile !== null) {
-                        html += `<p><i class="fas fa-oil-can"></i> Niveau d'huile : <strong>${niveauHuile}</strong></p>`;
-                    }
-
-                    html += `<p><i class="fas fa-exclamation-triangle"></i> État : <strong>${etat}</strong></p>`;
-                    html += `<p><i class="fas fa-clock"></i> Date/Heure : <strong>${dateHeure}</strong></p>`;
-
-                    document.getElementById('data-container').innerHTML = html;
-                } else {
-                    document.getElementById('data-container').innerHTML = "<p>ℹ Aucune donnée trouvée.</p>";
-                }
-            })
-            .catch(error => {
-                document.getElementById('data-container').innerHTML = `<p>Erreur de chargement des données : ${error}</p>`;
-            });
-    }
-
+  setTimeout(() => {
     fetchData();
-    setInterval(fetchData, 20000);  // rafraîchir toutes les 20 secondes
+    setInterval(fetchData, interval*15000);
+  }, delay);
+}
+
+syncRefresh(15);
 </script>
+
+</body>
+</html>
