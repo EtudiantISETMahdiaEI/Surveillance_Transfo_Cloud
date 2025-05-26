@@ -8,7 +8,7 @@
     body {
       font-family: 'Segoe UI', sans-serif;
       margin: 0;
-      background: #87CEEB; /* Bleu ciel */
+      background: #87CEEB;
       color: #001f4d;
       display: flex;
       justify-content: center;
@@ -91,17 +91,35 @@
 
       const data = await response.json();
 
-      update('temp', data.field1 ? parseFloat(data.field1).toFixed(2) + ' °C' : '--');
-      update('courant', data.field2 ? parseFloat(data.field2).toFixed(2) + ' A' : '--');
-      update('pression', data.field3 ? parseFloat(data.field3).toFixed(2) + ' bars' : '--');
+      const temp = parseFloat(data.field1);
+      const courant = parseFloat(data.field2);
+      const pression = parseFloat(data.field3);
+      const niveauBrut = (data.field4 || '').toLowerCase();
+      const niveau = (niveauBrut === 'haut' || niveauBrut === 'high') ? 'Haut' :
+                     (niveauBrut === 'bas' || niveauBrut === 'low') ? 'Bas' : '--';
 
-      const nh = data.field4 ? data.field4.toString().toLowerCase() : '';
-      update('niveau_huile',
-        nh === 'haut' || nh === 'high' ? 'Haut' :
-        nh === 'bas' || nh === 'low' ? 'Bas' : '--');
-
-      update('etat', data.field5 ?? '--');
+      update('temp', isNaN(temp) ? '--' : temp.toFixed(2) + ' °C');
+      update('courant', isNaN(courant) ? '--' : courant.toFixed(2) + ' A');
+      update('pression', isNaN(pression) ? '--' : pression.toFixed(2) + ' bars');
+      update('niveau_huile', niveau);
       update('heure_date', data.created_at ? formatDateTime(data.created_at) : '--');
+
+      // Logique d'état
+      let etats = [];
+
+      if (!isNaN(temp)) {
+        if (temp >= 90) etats.push("Surchauffe-critique");
+        else if (temp >= 80) etats.push("Surchauffe");
+      }
+
+      if (!isNaN(courant) && courant >= 910) etats.push("Surintensité");
+
+      if (!isNaN(pression) && pression >= 3) etats.push("Surpression");
+
+      if (niveau === 'Bas') etats.push("Faible_huile");
+
+      const etatFinal = etats.length > 0 ? etats.join(" | ") : "Normal";
+      update('etat', etatFinal);
 
       document.getElementById('loading').style.display = 'none';
     } catch (error) {
@@ -125,8 +143,8 @@
     return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
-  setInterval(fetchData, 15000); // Rafraîchissement toutes les 15 secondes
-  fetchData(); // Appel initial
+  setInterval(fetchData, 15000);
+  fetchData();
 </script>
 
 </body>
