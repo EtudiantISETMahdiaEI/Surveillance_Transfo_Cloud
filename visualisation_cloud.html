@@ -208,13 +208,13 @@ fetch(url)
       const etat = etats.length > 0 ? etats.join(" + ") : "Normal";
 
       const row = `<tr class="${className}">
-        <td>${convertToLocalTime(f.created_at)}</td>
-        <td>${f.field1 || "-"}</td>
-        <td>${f.field2 || "-"}</td>
-        <td>${f.field3 || "-"}</td>
-        <td>${niveau}</td>
-        <td>${etat}</td>
-      </tr>`;
+  <td>${convertToLocalTime(f.created_at)}</td>
+  <td>${tempVal.toFixed(2)}</td>
+  <td>${courantVal.toFixed(2)}</td>
+  <td>${pressionVal.toFixed(2)}</td>
+  <td>${niveau}</td>
+  <td>${etat}</td>
+</tr>`;
       tbody.innerHTML += row;
     });
   })
